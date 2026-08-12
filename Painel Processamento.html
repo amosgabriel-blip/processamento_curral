@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1A3530">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Processamento · GOL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde-escuro:#1A3530;
+    --verde-lage:#268A75;
+    --laranja:#F97316;
+    --creme:#F7F5EF;
+    --papel:#FFFFFF;
+    --linha:#E4E1D8;
+    --texto:#1A3530;
+    --texto-muted:#6B7A76;
+    --risco:#C6432F;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--verde-escuro);
+    font-family:'Inter',sans-serif;
+    color:var(--texto);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    background:var(--creme);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    background:var(--verde-escuro);
+    color:var(--creme);
+    padding:22px 20px 26px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute;
+    right:-40px; top:-40px;
+    width:160px; height:160px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(38,138,117,0.55) 0%, rgba(38,138,117,0) 70%);
+  }
+  .brand-row{
+    display:flex; align-items:center; justify-content:space-between;
+    position:relative; z-index:1;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand-mark{
+    width:34px; height:34px; border-radius:9px;
+    background:var(--laranja);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700; font-size:14px; color:var(--verde-escuro);
+    transform:rotate(-6deg);
+  }
+  .brand-text{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700; font-size:18px; letter-spacing:-0.01em;
+  }
+  .brand-text small{
+    display:block; font-family:'Inter',sans-serif; font-weight:500;
+    font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:rgba(247,245,239,0.55); margin-top:1px;
+  }
+  .today-badge{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:.03em;
+    background:rgba(247,245,239,0.1);
+    border:1px solid rgba(247,245,239,0.18);
+    padding:6px 10px; border-radius:20px;
+    color:rgba(247,245,239,0.85);
+  }
+  .header-stat{
+    position:relative; z-index:1;
+    margin-top:20px;
+    display:flex; align-items:baseline; gap:10px;
+  }
+  .header-stat .num{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700; font-size:40px; line-height:1;
+    color:#fff;
+  }
+  .header-stat .label{
+    font-size:13px; color:rgba(247,245,239,0.6);
+    line-height:1.3; max-width:180px;
+  }
+
+  /* ---------- MAIN ---------- */
+  main{
+    flex:1;
+    padding:18px 18px 100px;
+    overflow-y:auto;
+  }
+  .view{display:none;}
+  .view.active{display:block; animation:fadein .18s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .section-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600; font-size:15px;
+    color:var(--verde-escuro);
+    margin:4px 0 12px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .section-title .count-chip{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; font-weight:600;
+    background:var(--verde-lage); color:#fff;
+    padding:3px 8px; border-radius:20px;
+  }
+
+  /* ---------- FORM ---------- */
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block; font-size:12px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.04em;
+    color:var(--texto-muted); margin-bottom:6px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%; padding:12px 13px;
+    border:1.5px solid var(--linha); border-radius:10px;
+    background:var(--papel); color:var(--texto);
+    font-family:'Inter',sans-serif; font-size:15px;
+    outline:none; transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    border-color:var(--verde-lage);
+  }
+  .field textarea{resize:vertical; min-height:64px;}
+  .row-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+
+  .type-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+    margin-bottom:16px;
+  }
+  .type-opt{
+    border:1.5px solid var(--linha); background:var(--papel);
+    border-radius:10px; padding:10px 8px;
+    font-size:12.5px; font-weight:600; text-align:center;
+    color:var(--texto-muted); cursor:pointer;
+    transition:.15s;
+  }
+  .type-opt.active{
+    border-color:var(--verde-lage);
+    background:rgba(38,138,117,0.08);
+    color:var(--verde-lage);
+  }
+
+  .btn-primary{
+    width:100%; padding:14px; border:none; border-radius:11px;
+    background:var(--laranja); color:#fff;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px;
+    cursor:pointer; margin-top:6px;
+    box-shadow:0 6px 16px rgba(249,115,22,0.28);
+  }
+  .btn-primary:active{transform:scale(.98);}
+  .btn-secondary{
+    width:100%; padding:12px; border:1.5px solid var(--verde-lage); border-radius:11px;
+    background:transparent; color:var(--verde-lage);
+    font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
+    cursor:pointer;
+  }
+
+  /* ---------- LISTS ---------- */
+  .date-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--papel); border:1.5px solid var(--linha);
+    border-radius:11px; padding:8px 10px; margin-bottom:16px;
+  }
+  .date-nav button{
+    width:32px; height:32px; border-radius:8px; border:none;
+    background:var(--creme); color:var(--verde-escuro); font-size:16px; cursor:pointer;
+  }
+  .date-nav .date-label{
+    font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13px;
+    text-transform:capitalize;
+  }
+
+  .entry-card{
+    background:var(--papel); border:1.5px solid var(--linha);
+    border-radius:12px; padding:13px 14px; margin-bottom:10px;
+    display:flex; gap:12px; align-items:flex-start;
+  }
+  .entry-tag{
+    flex-shrink:0; width:44px; height:44px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px;
+    color:#fff;
+  }
+  .entry-body{flex:1; min-width:0;}
+  .entry-top{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .entry-type{font-weight:700; font-size:13.5px; color:var(--verde-escuro);}
+  .entry-qtd{
+    font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13px;
+    color:var(--verde-lage);
+  }
+  .entry-meta{
+    font-size:12px; color:var(--texto-muted); margin-top:3px;
+    display:flex; flex-wrap:wrap; gap:6px 10px;
+  }
+  .entry-obs{font-size:12px; color:var(--texto-muted); margin-top:5px; font-style:italic;}
+  .entry-del{
+    background:none; border:none; color:#C6C1B4; font-size:16px; cursor:pointer;
+    padding:2px 4px; flex-shrink:0;
+  }
+  .entry-del:active{color:var(--risco);}
+
+  .empty-state{
+    text-align:center; padding:50px 20px; color:var(--texto-muted);
+  }
+  .empty-state .glyph{font-size:30px; margin-bottom:10px;}
+  .empty-state p{font-size:13.5px; line-height:1.5; margin:0;}
+
+  /* ---------- RELATORIO ---------- */
+  .kpi-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;}
+  .kpi-card{
+    background:var(--verde-escuro); border-radius:12px; padding:16px 14px;
+    color:#fff;
+  }
+  .kpi-card .kpi-num{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:26px;}
+  .kpi-card .kpi-label{font-size:11px; color:rgba(247,245,239,0.6); margin-top:2px; text-transform:uppercase; letter-spacing:.04em;}
+  .kpi-card.alt{background:var(--verde-lage);}
+
+  .breakdown-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 0; border-bottom:1px solid var(--linha);
+  }
+  .breakdown-row:last-child{border-bottom:none;}
+  .breakdown-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .breakdown-name{flex:1; font-size:13.5px; font-weight:600;}
+  .breakdown-sub{font-size:11.5px; color:var(--texto-muted);}
+  .breakdown-num{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:14px;}
+
+  .table-wrap{
+    background:var(--papel); border:1.5px solid var(--linha); border-radius:12px;
+    padding:14px; margin-top:16px;
+  }
+  table{width:100%; border-collapse:collapse; font-size:12px;}
+  th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em;
+    color:var(--texto-muted); padding-bottom:8px; font-weight:600;
+  }
+  td{padding:7px 4px; border-top:1px solid var(--linha);}
+  td.num{font-family:'JetBrains Mono',monospace; font-weight:600; text-align:right;}
+
+  /* ---------- HISTORICO ---------- */
+  .hist-card{
+    background:var(--papel); border:1.5px solid var(--linha); border-radius:12px;
+    padding:13px 14px; margin-bottom:10px; display:flex; align-items:center;
+    justify-content:space-between; cursor:pointer;
+  }
+  .hist-date{font-weight:700; font-size:13.5px; text-transform:capitalize;}
+  .hist-sub{font-size:11.5px; color:var(--texto-muted); margin-top:2px;}
+  .hist-num{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:var(--verde-lage);}
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:absolute; bottom:0; left:0; right:0;
+    background:var(--papel); border-top:1px solid var(--linha);
+    display:flex; padding:8px 10px calc(10px + env(safe-area-inset-bottom));
+    gap:4px;
+  }
+  .nav-btn{
+    flex:1; background:none; border:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:6px 2px; border-radius:10px; color:var(--texto-muted);
+  }
+  .nav-btn.active{color:var(--verde-lage); background:rgba(38,138,117,0.08);}
+  .nav-btn svg{width:20px; height:20px;}
+  .nav-btn span{font-size:10px; font-weight:600;}
+
+  .toast{
+    position:absolute; bottom:78px; left:50%; transform:translateX(-50%) translateY(10px);
+    background:var(--verde-escuro); color:#fff; padding:10px 18px; border-radius:30px;
+    font-size:12.5px; font-weight:600; opacity:0; pointer-events:none;
+    transition:.2s; z-index:20; white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand-row">
+      <div class="brand">
+        <div class="brand-mark">GOL</div>
+        <div class="brand-text">Processamento<small>Confinamento &middot; Vera Cruz / Joia</small></div>
+      </div>
+      <div class="today-badge" id="clockBadge">--</div>
+    </div>
+    <div class="header-stat">
+      <div class="num" id="headerNum">0</div>
+      <div class="label">animais processados hoje, em <span id="headerRegistros">0</span> registros</div>
+    </div>
+    <button id="btnLogout" style="display:none; position:relative; z-index:1; margin-top:10px; background:rgba(247,245,239,0.1); border:1px solid rgba(247,245,239,0.18); color:rgba(247,245,239,0.75); font-size:11px; font-weight:600; padding:5px 10px; border-radius:20px; cursor:pointer;">Sair</button>
+  </header>
+
+  <main>
+
+    <!-- NOVO -->
+    <section class="view active" id="view-novo">
+      <div class="section-title">Novo processamento</div>
+      <form id="formNovo">
+        <div class="field">
+          <label>Tipo de processo</label>
+          <div class="type-grid" id="typeGrid"></div>
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label>Data</label>
+            <input type="date" id="fData" required>
+          </div>
+          <div class="field">
+            <label>Qtd. animais</label>
+            <input type="number" id="fQtd" min="1" placeholder="0" required>
+          </div>
+        </div>
+        <div class="row-2">
+          <div class="field">
+            <label>Curral origem</label>
+            <input type="text" id="fCurralOrigem" placeholder="Ex: C-14" required>
+          </div>
+          <div class="field">
+            <label>Curral destino</label>
+            <input type="text" id="fCurralDestino" placeholder="Ex: C-22" required>
+          </div>
+        </div>
+
+        <!-- Campos exclusivos: Entrada (Boi Magro) -->
+        <div id="camposEntrada">
+          <div class="row-2">
+            <div class="field">
+              <label>Fornecedor da boiada</label>
+              <input type="text" id="fFornecedor" placeholder="Nome do fornecedor">
+            </div>
+            <div class="field">
+              <label>Raça predominante</label>
+              <input type="text" id="fRaca" placeholder="Ex: Nelore">
+            </div>
+          </div>
+        </div>
+
+        <!-- Campos exclusivos: Saída (Boi Gordo) -->
+        <div id="camposSaida" style="display:none;">
+          <div class="row-2">
+            <div class="field">
+              <label>Carimbo</label>
+              <input type="text" id="fCarimbo" placeholder="Nº do carimbo">
+            </div>
+            <div class="field">
+              <label>Escala</label>
+              <input type="text" id="fEscala" placeholder="Ex: Escala 14/08">
+            </div>
+          </div>
+          <div class="field">
+            <label>Embarque</label>
+            <input type="text" id="fEmbarque" placeholder="Nº do embarque">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Observações (opcional)</label>
+          <textarea id="fObs" placeholder="Detalhes, ocorrência..."></textarea>
+        </div>
+        <button type="submit" class="btn-primary">Registrar processamento</button>
+      </form>
+    </section>
+
+    <!-- HOJE -->
+    <section class="view" id="view-hoje">
+      <div class="date-nav">
+        <button id="hojePrev">&#8249;</button>
+        <div class="date-label" id="hojeDateLabel">hoje</div>
+        <button id="hojeNext">&#8250;</button>
+      </div>
+      <div class="section-title">Registros do dia <span class="count-chip" id="hojeCount">0</span></div>
+      <div id="hojeList"></div>
+    </section>
+
+    <!-- RELATORIO -->
+    <section class="view" id="view-relatorio">
+      <div class="date-nav">
+        <button id="relPrev">&#8249;</button>
+        <div class="date-label" id="relDateLabel">hoje</div>
+        <button id="relNext">&#8250;</button>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-num" id="relTotalAnimais">0</div>
+          <div class="kpi-label">Animais processados</div>
+        </div>
+        <div class="kpi-card alt">
+          <div class="kpi-num" id="relTotalRegistros">0</div>
+          <div class="kpi-label">Registros / lotes</div>
+        </div>
+      </div>
+      <div class="section-title">Por tipo de processamento</div>
+      <div class="table-wrap" id="relBreakdown"></div>
+      <div class="section-title" style="margin-top:16px;">Detalhamento</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Origem</th><th>Destino</th><th>Tipo</th><th>Detalhe</th><th style="text-align:right">Qtd</th></tr></thead>
+          <tbody id="relTableBody"></tbody>
+        </table>
+      </div>
+      <button class="btn-secondary" id="btnCopiar" style="margin-top:16px;">Copiar relatório do dia</button>
+    </section>
+
+    <!-- HISTORICO -->
+    <section class="view" id="view-historico">
+      <div class="section-title">Histórico por data</div>
+      <div id="histList"></div>
+    </section>
+
+  </main>
+
+  <nav>
+    <button class="nav-btn active" data-view="novo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Novo</span>
+    </button>
+    <button class="nav-btn" data-view="hoje">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <span>Hoje</span>
+    </button>
+    <button class="nav-btn" data-view="relatorio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+      <span>Relatório</span>
+    </button>
+    <button class="nav-btn" data-view="historico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      <span>Histórico</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <div id="loginOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:60; padding:40px 24px; overflow-y:auto;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:28px;">
+      <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--verde-escuro); transform:rotate(-6deg);">GOL</div>
+      <div class="brand-text" style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Processamento</div>
+    </div>
+    <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;">Entrar</div>
+    <div style="font-size:13px; color:rgba(247,245,239,0.6); margin-bottom:20px;">Acesso restrito à equipe do confinamento.</div>
+    <form id="formLogin">
+      <div class="field">
+        <label style="color:rgba(247,245,239,0.6);">E-mail</label>
+        <input type="email" id="loginEmail" placeholder="seu.usuario@dominio.com" required>
+      </div>
+      <div class="field">
+        <label style="color:rgba(247,245,239,0.6);">Senha</label>
+        <input type="password" id="loginSenha" placeholder="••••••••" required>
+      </div>
+      <div id="loginError" style="display:none; font-size:12.5px; color:#F5B199; margin-bottom:10px;"></div>
+      <button type="submit" class="btn-primary">Entrar</button>
+    </form>
+  </div>
+
+  <div id="setupOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:50; padding:28px 22px; overflow-y:auto;">
+    <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;">Conectar ao Firestore</div>
+    <div style="font-size:13px; color:rgba(247,245,239,0.65); margin-bottom:20px; line-height:1.5;">
+      O app ainda não está ligado ao seu banco de dados. Preencha o objeto <code style="background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:4px;">firebaseConfig</code> no início do arquivo com os dados do seu projeto Firebase.
+    </div>
+    <ol style="font-size:13px; line-height:1.9; padding-left:18px; color:rgba(247,245,239,0.9);">
+      <li>Acesse <span style="color:#fff; font-weight:600;">console.firebase.google.com</span> e crie um projeto</li>
+      <li>Em <em>Build &rarr; Firestore Database</em>, clique em "Criar banco de dados" (modo produção)</li>
+      <li>Em <em>Configurações do projeto &rarr; Seus apps</em>, adicione um app da Web e copie o objeto de configuração</li>
+      <li>Cole os valores no <code style="background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:4px;">firebaseConfig</code> deste arquivo e salve novamente</li>
+      <li>Em <em>Firestore &rarr; Regras</em>, defina as regras de acesso da coleção <code style="background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:4px;">processamentos</code></li>
+    </ol>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+// ====== CONFIGURAÇÃO DO FIREBASE ======
+// Substitua pelos dados do SEU projeto (Configurações do projeto > Seus apps > SDK setup and configuration)
+const firebaseConfig = {
+  apiKey: "AIzaSyB82r1s_Zy-Jvoaj2RdDNiBgNQDCyd5vPI",
+  authDomain: "campool-7e159.firebaseapp.com",
+  projectId: "campool-7e159",
+  storageBucket: "campool-7e159.firebasestorage.app",
+  messagingSenderId: "369337458767",
+  appId: "1:369337458767:web:4ebecb80c3f3ec99030a3a"
+};
+const FIRESTORE_COLLECTION = 'processamentos';
+
+const isConfigured = firebaseConfig.apiKey !== "SUA_API_KEY_AQUI";
+let db = null;
+let auth = null;
+if(isConfigured){
+  const firebaseApp = initializeApp(firebaseConfig);
+  db = getFirestore(firebaseApp);
+  auth = getAuth(firebaseApp);
+}else{
+  document.getElementById('setupOverlay').style.display = 'block';
+}
+
+(function(){
+  const TYPES = [
+    {id:'entrada', label:'Entrada · Boi Magro', short:'Entrada', color:'#268A75'},
+    {id:'saida', label:'Saída · Boi Gordo', short:'Saída', color:'#F97316'},
+  ];
+  const typeMap = Object.fromEntries(TYPES.map(t=>[t.id,t]));
+  let data = [];
+  let selectedType = TYPES[0].id;
+  let hojeDate = todayISO();
+  let relDate = todayISO();
+
+  function todayISO(){
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function fmtDateLabel(iso){
+    const [y,m,d] = iso.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    const label = dt.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'short'});
+    if(iso === todayISO()) return 'Hoje · ' + label;
+    return label;
+  }
+  function shiftDate(iso, delta){
+    const [y,m,d] = iso.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    dt.setDate(dt.getDate()+delta);
+    return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+
+  // ---------- AUTH ----------
+  function showLogin(show){
+    document.getElementById('loginOverlay').style.display = show ? 'block' : 'none';
+    document.getElementById('btnLogout').style.display = show ? 'none' : 'inline-block';
+  }
+  function initAuth(){
+    if(!auth) return;
+    onAuthStateChanged(auth, (user)=>{
+      if(user){
+        showLogin(false);
+        initFirestore();
+      }else{
+        showLogin(true);
+        data = [];
+        renderAll();
+      }
+    });
+  }
+  document.getElementById('formLogin').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    const email = document.getElementById('loginEmail').value.trim();
+    const senha = document.getElementById('loginSenha').value;
+    try{
+      await signInWithEmailAndPassword(auth, email, senha);
+      document.getElementById('formLogin').reset();
+    }catch(err){
+      errEl.textContent = 'E-mail ou senha inválidos.';
+      errEl.style.display = 'block';
+    }
+  });
+  document.getElementById('btnLogout').addEventListener('click', async ()=>{
+    if(auth) await signOut(auth);
+  });
+
+  // ---------- FIRESTORE ----------
+  function initFirestore(){
+    if(!db) return;
+    const q = query(collection(db, FIRESTORE_COLLECTION), orderBy('criadoEm', 'desc'));
+    onSnapshot(q, (snapshot)=>{
+      data = snapshot.docs.map(d=>({ id: d.id, ...d.data() }));
+      renderAll();
+    }, (err)=>{
+      console.error(err);
+      showToast('Erro ao sincronizar com o Firestore');
+    });
+  }
+  async function addRecord(record){
+    try{
+      await addDoc(collection(db, FIRESTORE_COLLECTION), record);
+      return true;
+    }catch(e){
+      console.error(e);
+      showToast('Erro ao salvar. Verifique a conexão.');
+      return false;
+    }
+  }
+  async function removeRecord(id){
+    try{
+      await deleteDoc(doc(db, FIRESTORE_COLLECTION, id));
+    }catch(e){
+      console.error(e);
+      showToast('Erro ao excluir. Verifique a conexão.');
+    }
+  }
+
+  // ---------- CLOCK ----------
+  function updateClock(){
+    const now = new Date();
+    document.getElementById('clockBadge').textContent = now.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' · ' + now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  // ---------- TYPE GRID ----------
+  function renderTypeGrid(){
+    const grid = document.getElementById('typeGrid');
+    grid.innerHTML = TYPES.map(t=>`<div class="type-opt${t.id===selectedType?' active':''}" data-type="${t.id}">${t.label}</div>`).join('');
+    grid.querySelectorAll('.type-opt').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        selectedType = el.dataset.type;
+        renderTypeGrid();
+        toggleTypeFields();
+      });
+    });
+  }
+  function toggleTypeFields(){
+    const isEntrada = selectedType === 'entrada';
+    document.getElementById('camposEntrada').style.display = isEntrada ? 'block' : 'none';
+    document.getElementById('camposSaida').style.display = isEntrada ? 'none' : 'block';
+  }
+
+  // ---------- HEADER ----------
+  function renderHeader(){
+    const today = todayISO();
+    const todays = data.filter(r=>r.data===today);
+    document.getElementById('headerNum').textContent = todays.reduce((s,r)=>s+Number(r.qtd),0);
+    document.getElementById('headerRegistros').textContent = todays.length;
+  }
+
+  // ---------- HOJE VIEW ----------
+  function renderHoje(){
+    document.getElementById('hojeDateLabel').textContent = fmtDateLabel(hojeDate);
+    const list = data.filter(r=>r.data===hojeDate).sort((a,b)=>b.criadoEm-a.criadoEm);
+    document.getElementById('hojeCount').textContent = list.length;
+    const el = document.getElementById('hojeList');
+    if(list.length===0){
+      el.innerHTML = `<div class="empty-state"><div class="glyph">&#128337;</div><p>Nenhum processamento registrado nesta data.<br>Toque em "Novo" para adicionar o primeiro.</p></div>`;
+      return;
+    }
+    el.innerHTML = list.map(r=>{
+      const t = typeMap[r.tipo] || TYPES[0];
+      const hora = new Date(r.criadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const detalhe = r.tipo === 'entrada'
+        ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : ''].filter(Boolean).join(' · ');
+      return `<div class="entry-card">
+        <div class="entry-tag" style="background:${t.color}">${escapeHtml(r.curralOrigem||'').slice(0,4)}</div>
+        <div class="entry-body">
+          <div class="entry-top">
+            <div class="entry-type">${t.short}</div>
+            <div class="entry-qtd">${r.qtd} cab.</div>
+          </div>
+          <div class="entry-meta"><span>${escapeHtml(r.curralOrigem)} &#8594; ${escapeHtml(r.curralDestino)}</span><span>${hora}</span></div>
+          ${detalhe ? `<div class="entry-meta">${escapeHtml(detalhe)}</div>` : ''}
+          ${r.obs ? `<div class="entry-obs">${escapeHtml(r.obs)}</div>` : ''}
+        </div>
+        <button class="entry-del" data-id="${r.id}">&#10005;</button>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.entry-del').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        await removeRecord(btn.dataset.id);
+        showToast('Registro removido');
+      });
+    });
+  }
+
+  // ---------- RELATORIO VIEW ----------
+  function renderRelatorio(){
+    document.getElementById('relDateLabel').textContent = fmtDateLabel(relDate);
+    const list = data.filter(r=>r.data===relDate);
+    const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
+    document.getElementById('relTotalAnimais').textContent = totalAnimais;
+    document.getElementById('relTotalRegistros').textContent = list.length;
+
+    const byType = {};
+    list.forEach(r=>{
+      byType[r.tipo] = byType[r.tipo] || {qtd:0, count:0};
+      byType[r.tipo].qtd += Number(r.qtd);
+      byType[r.tipo].count += 1;
+    });
+    const breakdownEl = document.getElementById('relBreakdown');
+    const typeIds = Object.keys(byType);
+    if(typeIds.length===0){
+      breakdownEl.innerHTML = `<div class="empty-state"><div class="glyph">&#128203;</div><p>Sem registros nesta data.</p></div>`;
+    }else{
+      breakdownEl.innerHTML = typeIds.sort((a,b)=>byType[b].qtd-byType[a].qtd).map(id=>{
+        const t = typeMap[id] || TYPES[0];
+        const d = byType[id];
+        return `<div class="breakdown-row">
+          <div class="breakdown-dot" style="background:${t.color}"></div>
+          <div class="breakdown-name">${t.label}<div class="breakdown-sub">${d.count} lote${d.count>1?'s':''}</div></div>
+          <div class="breakdown-num">${d.qtd}</div>
+        </div>`;
+      }).join('');
+    }
+
+    const tbody = document.getElementById('relTableBody');
+    if(list.length===0){
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--texto-muted); padding:14px 4px;">—</td></tr>`;
+    }else{
+      tbody.innerHTML = list.sort((a,b)=>a.criadoEm-b.criadoEm).map(r=>{
+        const t = typeMap[r.tipo] || TYPES[0];
+        const detalhe = r.tipo === 'entrada'
+          ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+          : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : ''].filter(Boolean).join(' · ');
+        return `<tr><td>${escapeHtml(r.curralOrigem)}</td><td>${escapeHtml(r.curralDestino)}</td><td>${t.short}</td><td>${escapeHtml(detalhe) || '—'}</td><td class="num">${r.qtd}</td></tr>`;
+      }).join('');
+    }
+  }
+
+  function buildReportText(){
+    const list = data.filter(r=>r.data===relDate);
+    const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
+    const byType = {};
+    list.forEach(r=>{
+      byType[r.tipo] = byType[r.tipo] || {qtd:0, count:0};
+      byType[r.tipo].qtd += Number(r.qtd);
+      byType[r.tipo].count += 1;
+    });
+    let txt = `RELATÓRIO DE PROCESSAMENTO — ${fmtDateLabel(relDate)}\n`;
+    txt += `Total: ${totalAnimais} animais em ${list.length} registro(s)\n\n`;
+    txt += `Por tipo:\n`;
+    Object.keys(byType).sort((a,b)=>byType[b].qtd-byType[a].qtd).forEach(id=>{
+      const t = typeMap[id] || TYPES[0];
+      txt += `- ${t.label}: ${byType[id].qtd} cab. (${byType[id].count} lote${byType[id].count>1?'s':''})\n`;
+    });
+    txt += `\nDetalhamento:\n`;
+    list.sort((a,b)=>a.criadoEm-b.criadoEm).forEach(r=>{
+      const t = typeMap[r.tipo] || TYPES[0];
+      const detalhe = r.tipo === 'entrada'
+        ? [r.fornecedor ? 'fornecedor: '+r.fornecedor : '', r.raca ? 'raça: '+r.raca : ''].filter(Boolean).join(' · ')
+        : [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : ''].filter(Boolean).join(' · ');
+      txt += `- ${r.curralOrigem} → ${r.curralDestino} · ${t.short} · ${r.qtd} cab.${detalhe ? ' · '+detalhe : ''}${r.obs ? ' · '+r.obs : ''}\n`;
+    });
+    return txt;
+  }
+
+  // ---------- HISTORICO VIEW ----------
+  function renderHistorico(){
+    const byDate = {};
+    data.forEach(r=>{
+      byDate[r.data] = byDate[r.data] || {qtd:0, count:0};
+      byDate[r.data].qtd += Number(r.qtd);
+      byDate[r.data].count += 1;
+    });
+    const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+    const el = document.getElementById('histList');
+    if(dates.length===0){
+      el.innerHTML = `<div class="empty-state"><div class="glyph">&#128197;</div><p>Nenhum histórico ainda.</p></div>`;
+      return;
+    }
+    el.innerHTML = dates.map(iso=>{
+      const d = byDate[iso];
+      return `<div class="hist-card" data-date="${iso}">
+        <div><div class="hist-date">${fmtDateLabel(iso)}</div><div class="hist-sub">${d.count} registro${d.count>1?'s':''}</div></div>
+        <div class="hist-num">${d.qtd}</div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.hist-card').forEach(card=>{
+      card.addEventListener('click', ()=>{
+        relDate = card.dataset.date;
+        switchView('relatorio');
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderAll(){
+    renderHeader();
+    renderHoje();
+    renderRelatorio();
+    renderHistorico();
+  }
+
+  // ---------- NAV ----------
+  function switchView(view){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+view).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  }
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>switchView(btn.dataset.view));
+  });
+
+  document.getElementById('hojePrev').addEventListener('click', ()=>{ hojeDate = shiftDate(hojeDate,-1); renderHoje(); });
+  document.getElementById('hojeNext').addEventListener('click', ()=>{ hojeDate = shiftDate(hojeDate,1); renderHoje(); });
+  document.getElementById('relPrev').addEventListener('click', ()=>{ relDate = shiftDate(relDate,-1); renderRelatorio(); });
+  document.getElementById('relNext').addEventListener('click', ()=>{ relDate = shiftDate(relDate,1); renderRelatorio(); });
+
+  document.getElementById('btnCopiar').addEventListener('click', async ()=>{
+    const txt = buildReportText();
+    try{
+      await navigator.clipboard.writeText(txt);
+      showToast('Relatório copiado');
+    }catch(e){
+      showToast('Não foi possível copiar');
+    }
+  });
+
+  // ---------- FORM ----------
+  document.getElementById('formNovo').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!db){
+      showToast('Configure o Firestore primeiro');
+      return;
+    }
+    const record = {
+      tipo: selectedType,
+      data: document.getElementById('fData').value,
+      curralOrigem: document.getElementById('fCurralOrigem').value.trim(),
+      curralDestino: document.getElementById('fCurralDestino').value.trim(),
+      qtd: Number(document.getElementById('fQtd').value),
+      obs: document.getElementById('fObs').value.trim(),
+      criadoEm: Date.now(),
+    };
+    if(selectedType === 'entrada'){
+      record.fornecedor = document.getElementById('fFornecedor').value.trim();
+      record.raca = document.getElementById('fRaca').value.trim();
+    }else{
+      record.carimbo = document.getElementById('fCarimbo').value.trim();
+      record.escala = document.getElementById('fEscala').value.trim();
+      record.embarque = document.getElementById('fEmbarque').value.trim();
+    }
+    if(!record.data || !record.curralOrigem || !record.curralDestino || !record.qtd){
+      showToast('Preencha os campos obrigatórios');
+      return;
+    }
+    const ok = await addRecord(record);
+    if(!ok) return;
+    document.getElementById('formNovo').reset();
+    document.getElementById('fData').value = todayISO();
+    selectedType = TYPES[0].id;
+    renderTypeGrid();
+    toggleTypeFields();
+    showToast('Processamento registrado');
+  });
+
+  // ---------- INIT ----------
+  function init(){
+    document.getElementById('fData').value = todayISO();
+    renderTypeGrid();
+    toggleTypeFields();
+    updateClock();
+    setInterval(updateClock, 30000);
+    renderAll();
+    initAuth();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
