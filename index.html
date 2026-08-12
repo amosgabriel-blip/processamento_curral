@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Processamento · GOL</title>
+<title>Processamento · G.O.L</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -298,6 +298,23 @@
     transition:.2s; z-index:20; white-space:nowrap;
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* ---------- PRINT / PDF ---------- */
+  @media print{
+    body{background:#fff;}
+    #app{max-width:none; min-height:0; box-shadow:none;}
+    header, nav, .toast, #btnCopiar, #btnPdf, #btnLogout, .date-nav button, #setupOverlay, #loginOverlay{display:none !important;}
+    main{padding:0; overflow:visible;}
+    .view{display:none !important;}
+    .view.active{display:block !important;}
+    .print-only{display:block !important;}
+    .date-nav{border:none; padding:0; margin-bottom:10px;}
+    .date-nav .date-label{display:none;}
+    .kpi-card{background:#fff !important; color:var(--verde-escuro) !important; border:1.5px solid var(--linha);}
+    .kpi-card .kpi-label{color:var(--texto-muted) !important;}
+    .kpi-card.alt{border-color:var(--verde-lage);}
+    .table-wrap, .breakdown-row{break-inside:avoid;}
+  }
 </style>
 </head>
 <body>
@@ -306,8 +323,8 @@
   <header>
     <div class="brand-row">
       <div class="brand">
-        <div class="brand-mark">GOL</div>
-        <div class="brand-text">Processamento<small>Confinamento &middot; Vera Cruz / Joia</small></div>
+        <div class="brand-mark">G.O.L</div>
+        <div class="brand-text">Processamento<small>Confinamento &middot; Vera Cruz</small></div>
       </div>
       <div class="today-badge" id="clockBadge">--</div>
     </div>
@@ -403,6 +420,10 @@
 
     <!-- RELATORIO -->
     <section class="view" id="view-relatorio">
+      <div class="print-only" style="display:none;">
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; color:var(--verde-escuro);">Grupo Otávio Lage &middot; Relatório de Processamento</div>
+        <div style="font-size:12.5px; color:var(--texto-muted); margin-bottom:18px;" id="printDateLabel"></div>
+      </div>
       <div class="date-nav">
         <button id="relPrev">&#8249;</button>
         <div class="date-label" id="relDateLabel">hoje</div>
@@ -428,6 +449,7 @@
         </table>
       </div>
       <button class="btn-secondary" id="btnCopiar" style="margin-top:16px;">Copiar relatório do dia</button>
+      <button class="btn-primary" id="btnPdf" style="margin-top:10px;">Baixar PDF do dia</button>
     </section>
 
     <!-- HISTORICO -->
@@ -461,7 +483,7 @@
 
   <div id="loginOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:60; padding:40px 24px; overflow-y:auto;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:28px;">
-      <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--verde-escuro); transform:rotate(-6deg);">GOL</div>
+      <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--verde-escuro); transform:rotate(-6deg);">G.O.L</div>
       <div class="brand-text" style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Processamento</div>
     </div>
     <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;">Entrar</div>
@@ -703,6 +725,7 @@ if(isConfigured){
     const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
     document.getElementById('relTotalAnimais').textContent = totalAnimais;
     document.getElementById('relTotalRegistros').textContent = list.length;
+    document.getElementById('printDateLabel').textContent = fmtDateLabel(relDate) + ' · ' + totalAnimais + ' animais em ' + list.length + ' registro(s)';
 
     const byType = {};
     list.forEach(r=>{
@@ -830,6 +853,11 @@ if(isConfigured){
     }catch(e){
       showToast('Não foi possível copiar');
     }
+  });
+
+  document.getElementById('btnPdf').addEventListener('click', ()=>{
+    switchView('relatorio');
+    setTimeout(()=>window.print(), 50);
   });
 
   // ---------- FORM ----------
