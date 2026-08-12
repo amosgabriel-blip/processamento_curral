@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Processamento · G.O.L</title>
+<title>Processamento · O.L</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -279,9 +279,9 @@
   nav{
     position:absolute; bottom:0; left:0; right:0;
     background:var(--papel); border-top:1px solid var(--linha);
-    display:flex; padding:8px 10px calc(10px + env(safe-area-inset-bottom));
-    gap:4px;
+    padding:8px 10px calc(4px + env(safe-area-inset-bottom));
   }
+  .nav-row{display:flex; gap:4px;}
   .nav-btn{
     flex:1; background:none; border:none; cursor:pointer;
     display:flex; flex-direction:column; align-items:center; gap:4px;
@@ -290,6 +290,11 @@
   .nav-btn.active{color:var(--verde-lage); background:rgba(38,138,117,0.08);}
   .nav-btn svg{width:20px; height:20px;}
   .nav-btn span{font-size:10px; font-weight:600;}
+  .app-footer{
+    text-align:center; font-size:10px; font-weight:600;
+    color:var(--texto-muted); letter-spacing:.03em;
+    padding-top:6px;
+  }
 
   .toast{
     position:absolute; bottom:78px; left:50%; transform:translateX(-50%) translateY(10px);
@@ -323,7 +328,7 @@
   <header>
     <div class="brand-row">
       <div class="brand">
-        <div class="brand-mark">G.O.L</div>
+        <div class="brand-mark">O.L</div>
         <div class="brand-text">Processamento<small>Confinamento &middot; Vera Cruz</small></div>
       </div>
       <div class="today-badge" id="clockBadge">--</div>
@@ -461,6 +466,7 @@
   </main>
 
   <nav>
+    <div class="nav-row">
     <button class="nav-btn active" data-view="novo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       <span>Novo</span>
@@ -485,7 +491,7 @@
 
   <div id="loginOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:60; padding:40px 24px; overflow-y:auto;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:28px;">
-      <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--verde-escuro); transform:rotate(-6deg);">G.O.L</div>
+      <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--verde-escuro); transform:rotate(-6deg);">O.L</div>
       <div class="brand-text" style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Processamento</div>
     </div>
     <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;">Entrar</div>
