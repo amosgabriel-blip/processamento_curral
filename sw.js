@@ -1,4 +1,4 @@
-const CACHE_NAME = 'processamento-gol-v1';
+const CACHE_NAME = 'processamento-gol-v4';
 const SHELL_FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
