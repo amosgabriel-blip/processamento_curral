@@ -224,10 +224,12 @@
     display:flex; flex-wrap:wrap; gap:6px 10px;
   }
   .entry-obs{font-size:12px; color:var(--texto-muted); margin-top:5px; font-style:italic;}
-  .entry-del{
-    background:none; border:none; color:#C6C1B4; font-size:16px; cursor:pointer;
-    padding:2px 4px; flex-shrink:0;
+  .entry-actions{display:flex; flex-direction:column; gap:4px; flex-shrink:0;}
+  .entry-edit, .entry-del{
+    background:none; border:none; color:#C6C1B4; font-size:15px; cursor:pointer;
+    padding:2px 4px;
   }
+  .entry-edit:active{color:var(--verde-lage);}
   .entry-del:active{color:var(--risco);}
 
   .empty-state{
@@ -347,7 +349,11 @@
 
     <!-- NOVO -->
     <section class="view active" id="view-novo">
-      <div class="section-title">Novo processamento</div>
+      <div class="section-title" id="novoTitle">Novo processamento</div>
+      <div id="editBanner" style="display:none; background:rgba(38,138,117,0.1); border:1px solid var(--verde-lage); color:var(--verde-lage); font-size:12.5px; font-weight:600; padding:9px 12px; border-radius:10px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;">
+        <span>Editando registro existente</span>
+        <button type="button" id="btnCancelEdit" style="background:none; border:none; color:var(--verde-lage); font-weight:700; cursor:pointer; font-size:12.5px;">Cancelar</button>
+      </div>
       <form id="formNovo">
         <div class="field">
           <label>Tipo de processo</label>
@@ -421,7 +427,7 @@
           <label>Observações (opcional)</label>
           <textarea id="fObs" placeholder="Detalhes, ocorrência..."></textarea>
         </div>
-        <button type="submit" class="btn-primary">Registrar processamento</button>
+        <button type="submit" class="btn-primary" id="btnSubmit">Registrar processamento</button>
       </form>
     </section>
 
@@ -545,7 +551,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 // ====== CONFIGURAÇÃO DO FIREBASE ======
@@ -579,6 +585,7 @@ if(isConfigured){
   const typeMap = Object.fromEntries(TYPES.map(t=>[t.id,t]));
   let data = [];
   let selectedType = TYPES[0].id;
+  let editingId = null;
   let hojeDate = todayISO();
   let relDate = todayISO();
 
@@ -665,6 +672,16 @@ if(isConfigured){
       return false;
     }
   }
+  async function updateRecord(id, record){
+    try{
+      await updateDoc(doc(db, FIRESTORE_COLLECTION, id), record);
+      return true;
+    }catch(e){
+      console.error(e);
+      showToast('Erro ao salvar alterações. Verifique a conexão.');
+      return false;
+    }
+  }
   async function removeRecord(id){
     try{
       await deleteDoc(doc(db, FIRESTORE_COLLECTION, id));
@@ -697,6 +714,47 @@ if(isConfigured){
     document.getElementById('camposEntrada').style.display = isEntrada ? 'block' : 'none';
     document.getElementById('camposSaida').style.display = isEntrada ? 'none' : 'block';
   }
+
+  // ---------- EDIT ----------
+  function startEdit(record){
+    editingId = record.id;
+    selectedType = record.tipo;
+    renderTypeGrid();
+    toggleTypeFields();
+
+    document.getElementById('fData').value = record.data || '';
+    document.getElementById('fCurralOrigem').value = record.curralOrigem || '';
+    document.getElementById('fCurralDestino').value = record.curralDestino || '';
+    document.getElementById('fQtd').value = record.qtd || '';
+    document.getElementById('fObs').value = record.obs || '';
+    if(record.tipo === 'entrada'){
+      document.getElementById('fFornecedor').value = record.fornecedor || '';
+      document.getElementById('fRaca').value = record.raca || '';
+    }else{
+      document.getElementById('fCarimbo').value = record.carimbo || '';
+      document.getElementById('fEscala').value = record.escala || '';
+      document.getElementById('fEmbarque').value = record.embarque || '';
+      document.getElementById('fRefugoDente').value = record.refugoDente || '';
+      document.getElementById('fRefugoPeso').value = record.refugoPeso || '';
+    }
+
+    document.getElementById('novoTitle').textContent = 'Editar processamento';
+    document.getElementById('editBanner').style.display = 'flex';
+    document.getElementById('btnSubmit').textContent = 'Salvar alterações';
+    switchView('novo');
+  }
+  function cancelEdit(){
+    editingId = null;
+    document.getElementById('formNovo').reset();
+    document.getElementById('fData').value = todayISO();
+    selectedType = TYPES[0].id;
+    renderTypeGrid();
+    toggleTypeFields();
+    document.getElementById('novoTitle').textContent = 'Novo processamento';
+    document.getElementById('editBanner').style.display = 'none';
+    document.getElementById('btnSubmit').textContent = 'Registrar processamento';
+  }
+  document.getElementById('btnCancelEdit').addEventListener('click', cancelEdit);
 
   // ---------- HEADER ----------
   function renderHeader(){
@@ -733,13 +791,22 @@ if(isConfigured){
           ${detalhe ? `<div class="entry-meta">${escapeHtml(detalhe)}</div>` : ''}
           ${r.obs ? `<div class="entry-obs">${escapeHtml(r.obs)}</div>` : ''}
         </div>
-        <button class="entry-del" data-id="${r.id}">&#10005;</button>
+        <div class="entry-actions">
+          <button class="entry-edit" data-id="${r.id}">&#9998;</button>
+          <button class="entry-del" data-id="${r.id}">&#10005;</button>
+        </div>
       </div>`;
     }).join('');
     el.querySelectorAll('.entry-del').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         await removeRecord(btn.dataset.id);
         showToast('Registro removido');
+      });
+    });
+    el.querySelectorAll('.entry-edit').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const record = data.find(r=>r.id === btn.dataset.id);
+        if(record) startEdit(record);
       });
     });
   }
@@ -1062,7 +1129,7 @@ if(isConfigured){
       curralDestino: document.getElementById('fCurralDestino').value.trim(),
       qtd: Number(document.getElementById('fQtd').value),
       obs: document.getElementById('fObs').value.trim(),
-      criadoEm: Date.now(),
+      criadoEm: editingId ? (data.find(r=>r.id===editingId)?.criadoEm || Date.now()) : Date.now(),
     };
     if(selectedType === 'entrada'){
       record.fornecedor = document.getElementById('fFornecedor').value.trim();
@@ -1078,14 +1145,19 @@ if(isConfigured){
       showToast('Preencha os campos obrigatórios');
       return;
     }
-    const ok = await addRecord(record);
+    const ok = editingId ? await updateRecord(editingId, record) : await addRecord(record);
     if(!ok) return;
+    const wasEditing = !!editingId;
+    editingId = null;
     document.getElementById('formNovo').reset();
     document.getElementById('fData').value = todayISO();
     selectedType = TYPES[0].id;
     renderTypeGrid();
     toggleTypeFields();
-    showToast('Processamento registrado');
+    document.getElementById('novoTitle').textContent = 'Novo processamento';
+    document.getElementById('editBanner').style.display = 'none';
+    document.getElementById('btnSubmit').textContent = 'Registrar processamento';
+    showToast(wasEditing ? 'Alterações salvas' : 'Processamento registrado');
   });
 
   // ---------- INIT ----------
