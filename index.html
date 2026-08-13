@@ -311,7 +311,7 @@
   @media print{
     body{background:#fff;}
     #app{max-width:none; min-height:0; box-shadow:none;}
-    header, nav, .toast, #btnCopiar, #btnPdf, #btnLogout, .date-nav button, #setupOverlay, #loginOverlay{display:none !important;}
+    header, nav, .toast, #btnCopiar, #btnPdf, #btnWhats, #btnExcel, #btnLogout, .date-nav button, #setupOverlay, #loginOverlay{display:none !important;}
     main{padding:0; overflow:visible;}
     .view{display:none !important;}
     .view.active{display:block !important;}
@@ -405,6 +405,16 @@
             <label>Embarque</label>
             <input type="text" id="fEmbarque" placeholder="Nº do embarque">
           </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Refugo de dente</label>
+              <input type="number" id="fRefugoDente" min="0" placeholder="0">
+            </div>
+            <div class="field">
+              <label>Refugo de peso</label>
+              <input type="number" id="fRefugoPeso" min="0" placeholder="0">
+            </div>
+          </div>
         </div>
 
         <div class="field">
@@ -429,7 +439,7 @@
     <!-- RELATORIO -->
     <section class="view" id="view-relatorio">
       <div class="print-only" style="display:none;">
-        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; color:var(--verde-escuro);">Grupo Otávio Lage &middot; Relatório de Processamento</div>
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; color:var(--verde-escuro);">O.L &middot; Relatório de Processamento</div>
         <div style="font-size:12.5px; color:var(--texto-muted); margin-bottom:18px;" id="printDateLabel"></div>
       </div>
       <div class="date-nav">
@@ -458,11 +468,14 @@
       </div>
       <button class="btn-secondary" id="btnCopiar" style="margin-top:16px;">Copiar relatório do dia</button>
       <button class="btn-primary" id="btnPdf" style="margin-top:10px;">Baixar PDF do dia</button>
+      <button class="btn-primary" id="btnWhats" style="margin-top:10px; background:#25D366; box-shadow:0 6px 16px rgba(37,211,102,0.28);">Compartilhar PDF no WhatsApp</button>
+      <button class="btn-secondary" id="btnExcel" style="margin-top:10px;">Exportar Excel do dia</button>
     </section>
 
     <!-- HISTORICO -->
     <section class="view" id="view-historico">
       <div class="section-title">Histórico por data</div>
+      <button class="btn-secondary" id="btnExcelTudo" style="margin-bottom:16px;">Exportar histórico completo (Excel)</button>
       <div id="histList"></div>
     </section>
 
@@ -494,7 +507,7 @@
 
   <div id="loginOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:60; padding:40px 24px; overflow-y:auto;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:28px;">
-      <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--verde-escuro); transform:rotate(-6deg);">O.L</div>
+      <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:var(--verde-escuro); transform:rotate(-6deg);">O.L</div>
       <div class="brand-text" style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Processamento</div>
     </div>
     <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;">Entrar</div>
@@ -528,6 +541,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
@@ -706,7 +721,7 @@ if(isConfigured){
       const hora = new Date(r.criadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
-        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : ''].filter(Boolean).join(' · ');
+        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
       return `<div class="entry-card">
         <div class="entry-tag" style="background:${t.color}">${escapeHtml(r.curralOrigem||'').slice(0,4)}</div>
         <div class="entry-body">
@@ -768,10 +783,94 @@ if(isConfigured){
         const t = typeMap[r.tipo] || TYPES[0];
         const detalhe = r.tipo === 'entrada'
           ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
-          : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : ''].filter(Boolean).join(' · ');
+          : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
         return `<tr><td>${escapeHtml(r.curralOrigem)}</td><td>${escapeHtml(r.curralDestino)}</td><td>${t.short}</td><td>${escapeHtml(detalhe) || '—'}</td><td class="num">${r.qtd}</td></tr>`;
       }).join('');
     }
+  }
+
+  function buildPdfDoc(){
+    const { jsPDF } = window.jspdf;
+    const docPdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    const list = data.filter(r=>r.data===relDate).sort((a,b)=>a.criadoEm-b.criadoEm);
+    const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
+    const marginX = 40;
+    let y = 50;
+
+    docPdf.setFont('helvetica','bold');
+    docPdf.setFontSize(16);
+    docPdf.setTextColor(26,53,48);
+    docPdf.text('O.L — Relatório de Processamento', marginX, y);
+    y += 20;
+    docPdf.setFont('helvetica','normal');
+    docPdf.setFontSize(11);
+    docPdf.setTextColor(107,122,118);
+    docPdf.text(`${fmtDateLabel(relDate)}  ·  ${totalAnimais} animais em ${list.length} registro(s)`, marginX, y);
+    y += 26;
+
+    const byType = {};
+    list.forEach(r=>{
+      byType[r.tipo] = byType[r.tipo] || {qtd:0, count:0};
+      byType[r.tipo].qtd += Number(r.qtd);
+      byType[r.tipo].count += 1;
+    });
+    docPdf.setFont('helvetica','bold');
+    docPdf.setFontSize(12);
+    docPdf.setTextColor(26,53,48);
+    docPdf.text('Por tipo', marginX, y);
+    y += 16;
+    docPdf.setFont('helvetica','normal');
+    docPdf.setFontSize(10.5);
+    Object.keys(byType).sort((a,b)=>byType[b].qtd-byType[a].qtd).forEach(id=>{
+      const t = typeMap[id] || TYPES[0];
+      docPdf.text(`${t.label}: ${byType[id].qtd} cab. (${byType[id].count} lote${byType[id].count>1?'s':''})`, marginX, y);
+      y += 15;
+    });
+    y += 12;
+
+    docPdf.setFont('helvetica','bold');
+    docPdf.setFontSize(12);
+    docPdf.text('Detalhamento', marginX, y);
+    y += 8;
+    const colX = { origem: marginX, destino: marginX+90, tipo: marginX+180, detalhe: marginX+250, qtd: 555 };
+    y += 14;
+    docPdf.setFontSize(9.5);
+    docPdf.setTextColor(107,122,118);
+    docPdf.text('Origem', colX.origem, y);
+    docPdf.text('Destino', colX.destino, y);
+    docPdf.text('Tipo', colX.tipo, y);
+    docPdf.text('Detalhe', colX.detalhe, y);
+    docPdf.text('Qtd', colX.qtd, y, {align:'right'});
+    y += 6;
+    docPdf.setDrawColor(228,225,216);
+    docPdf.line(marginX, y, 555, y);
+    y += 14;
+
+    docPdf.setFont('helvetica','normal');
+    docPdf.setTextColor(26,53,48);
+    list.forEach(r=>{
+      if(y > 780){ docPdf.addPage(); y = 50; }
+      const t = typeMap[r.tipo] || TYPES[0];
+      const detalhe = r.tipo === 'entrada'
+        ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Esc. '+r.escala : '', r.embarque ? 'Emb. '+r.embarque : '', r.refugoDente ? 'Ref.dente '+r.refugoDente : '', r.refugoPeso ? 'Ref.peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+      docPdf.text(String(r.curralOrigem||'—'), colX.origem, y);
+      docPdf.text(String(r.curralDestino||'—'), colX.destino, y);
+      docPdf.text(t.short, colX.tipo, y);
+      docPdf.text(String(detalhe||'—').slice(0,40), colX.detalhe, y);
+      docPdf.text(String(r.qtd), colX.qtd, y, {align:'right'});
+      y += 15;
+      if(r.obs){
+        docPdf.setTextColor(107,122,118);
+        docPdf.setFontSize(8.5);
+        docPdf.text('Obs: ' + r.obs, colX.origem, y);
+        docPdf.setFontSize(9.5);
+        docPdf.setTextColor(26,53,48);
+        y += 13;
+      }
+    });
+
+    return docPdf;
   }
 
   function buildReportText(){
@@ -795,7 +894,7 @@ if(isConfigured){
       const t = typeMap[r.tipo] || TYPES[0];
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor ? 'fornecedor: '+r.fornecedor : '', r.raca ? 'raça: '+r.raca : ''].filter(Boolean).join(' · ')
-        : [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : ''].filter(Boolean).join(' · ');
+        : [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : '', r.refugoDente ? 'refugo dente: '+r.refugoDente : '', r.refugoPeso ? 'refugo peso: '+r.refugoPeso : ''].filter(Boolean).join(' · ');
       txt += `- ${r.curralOrigem} → ${r.curralDestino} · ${t.short} · ${r.qtd} cab.${detalhe ? ' · '+detalhe : ''}${r.obs ? ' · '+r.obs : ''}\n`;
     });
     return txt;
@@ -871,6 +970,84 @@ if(isConfigured){
     setTimeout(()=>window.print(), 50);
   });
 
+  document.getElementById('btnWhats').addEventListener('click', async ()=>{
+    const list = data.filter(r=>r.data===relDate);
+    if(list.length===0){
+      showToast('Sem registros nesta data');
+      return;
+    }
+    try{
+      const docPdf = buildPdfDoc();
+      const blob = docPdf.output('blob');
+      const fileName = `relatorio-processamento-${relDate}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({
+          files: [file],
+          title: 'Relatório de Processamento',
+          text: `Relatório de processamento — ${fmtDateLabel(relDate)}`
+        });
+      }else{
+        docPdf.save(fileName);
+        showToast('PDF baixado — anexe manualmente no WhatsApp');
+      }
+    }catch(e){
+      if(e && e.name === 'AbortError') return;
+      console.error(e);
+      showToast('Não foi possível compartilhar o PDF');
+    }
+  });
+
+  function recordsToRows(list){
+    return list.map(r=>{
+      const t = typeMap[r.tipo] || TYPES[0];
+      return {
+        'Data': r.data,
+        'Tipo': t.short,
+        'Curral Origem': r.curralOrigem || '',
+        'Curral Destino': r.curralDestino || '',
+        'Quantidade': r.qtd,
+        'Fornecedor': r.fornecedor || '',
+        'Raça predominante': r.raca || '',
+        'Carimbo': r.carimbo || '',
+        'Escala': r.escala || '',
+        'Embarque': r.embarque || '',
+        'Refugo de dente': r.refugoDente || '',
+        'Refugo de peso': r.refugoPeso || '',
+        'Observações': r.obs || '',
+      };
+    });
+  }
+
+  document.getElementById('btnExcel').addEventListener('click', ()=>{
+    const list = data.filter(r=>r.data===relDate).sort((a,b)=>a.criadoEm-b.criadoEm);
+    if(list.length===0){
+      showToast('Sem registros nesta data');
+      return;
+    }
+    const rows = recordsToRows(list);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(k=>({ wch: Math.max(k.length, 12) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
+    XLSX.writeFile(wb, `relatorio-processamento-${relDate}.xlsx`);
+  });
+
+  document.getElementById('btnExcelTudo').addEventListener('click', ()=>{
+    if(data.length===0){
+      showToast('Sem registros no histórico');
+      return;
+    }
+    const list = [...data].sort((a,b)=>a.criadoEm-b.criadoEm);
+    const rows = recordsToRows(list);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(k=>({ wch: Math.max(k.length, 12) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
+    XLSX.writeFile(wb, `historico-processamento-completo.xlsx`);
+  });
+
   // ---------- FORM ----------
   document.getElementById('formNovo').addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -894,6 +1071,8 @@ if(isConfigured){
       record.carimbo = document.getElementById('fCarimbo').value.trim();
       record.escala = document.getElementById('fEscala').value.trim();
       record.embarque = document.getElementById('fEmbarque').value.trim();
+      record.refugoDente = Number(document.getElementById('fRefugoDente').value) || 0;
+      record.refugoPeso = Number(document.getElementById('fRefugoPeso').value) || 0;
     }
     if(!record.data || !record.curralOrigem || !record.curralDestino || !record.qtd){
       showToast('Preencha os campos obrigatórios');
