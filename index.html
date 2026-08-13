@@ -413,11 +413,11 @@
           </div>
           <div class="row-2">
             <div class="field">
-              <label>Refugo de dente</label>
+              <label>Refugo</label>
               <input type="number" id="fRefugoDente" min="0" placeholder="0">
             </div>
             <div class="field">
-              <label>Refugo de peso</label>
+              <label>Leve</label>
               <input type="number" id="fRefugoPeso" min="0" placeholder="0">
             </div>
           </div>
@@ -779,7 +779,7 @@ if(isConfigured){
       const hora = new Date(r.criadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
-        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo '+r.refugoDente : '', r.refugoPeso ? 'Leve '+r.refugoPeso : ''].filter(Boolean).join(' · ');
       return `<div class="entry-card">
         <div class="entry-tag" style="background:${t.color}">${escapeHtml(r.curralOrigem||'').slice(0,4)}</div>
         <div class="entry-body">
@@ -850,7 +850,7 @@ if(isConfigured){
         const t = typeMap[r.tipo] || TYPES[0];
         const detalhe = r.tipo === 'entrada'
           ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
-          : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+          : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo '+r.refugoDente : '', r.refugoPeso ? 'Leve '+r.refugoPeso : ''].filter(Boolean).join(' · ');
         return `<tr><td>${escapeHtml(r.curralOrigem)}</td><td>${escapeHtml(r.curralDestino)}</td><td>${t.short}</td><td>${escapeHtml(detalhe) || '—'}</td><td class="num">${r.qtd}</td></tr>`;
       }).join('');
     }
@@ -961,7 +961,7 @@ if(isConfigured){
       const t = typeMap[r.tipo] || TYPES[0];
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor ? 'fornecedor: '+r.fornecedor : '', r.raca ? 'raça: '+r.raca : ''].filter(Boolean).join(' · ')
-        : [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : '', r.refugoDente ? 'refugo dente: '+r.refugoDente : '', r.refugoPeso ? 'refugo peso: '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+        : [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : '', r.refugoDente ? 'Refugo: '+r.refugoDente : '', r.refugoPeso ? 'Leve: '+r.refugoPeso : ''].filter(Boolean).join(' · ');
       txt += `- ${r.curralOrigem} → ${r.curralDestino} · ${t.short} · ${r.qtd} cab.${detalhe ? ' · '+detalhe : ''}${r.obs ? ' · '+r.obs : ''}\n`;
     });
     return txt;
@@ -1080,8 +1080,8 @@ if(isConfigured){
         'Carimbo': r.carimbo || '',
         'Escala': r.escala || '',
         'Embarque': r.embarque || '',
-        'Refugo de dente': r.refugoDente || '',
-        'Refugo de peso': r.refugoPeso || '',
+        'Refugo': r.refugoDente || '',
+        'Leve': r.refugoPeso || '',
         'Observações': r.obs || '',
       };
     });
