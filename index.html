@@ -313,7 +313,7 @@
   @media print{
     body{background:#fff;}
     #app{max-width:none; min-height:0; box-shadow:none;}
-    header, nav, .toast, #btnCopiar, #btnPdf, #btnWhats, #btnExcel, #btnLogout, .date-nav button, #setupOverlay, #loginOverlay{display:none !important;}
+    header, nav, .toast, #btnCopiar, #btnPdf, #btnWhats, #btnExcel, #btnLogout, .date-nav button, #modeDia, #modeSemana, #setupOverlay, #loginOverlay{display:none !important;}
     main{padding:0; overflow:visible;}
     .view{display:none !important;}
     .view.active{display:block !important;}
@@ -448,6 +448,10 @@
         <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; color:var(--verde-escuro);">O.L &middot; Relatório de Processamento</div>
         <div style="font-size:12.5px; color:var(--texto-muted); margin-bottom:18px;" id="printDateLabel"></div>
       </div>
+      <div class="type-grid" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">
+        <div class="type-opt active" id="modeDia" data-mode="dia">Diário</div>
+        <div class="type-opt" id="modeSemana" data-mode="semana">Semanal (dom–sáb)</div>
+      </div>
       <div class="date-nav">
         <button id="relPrev">&#8249;</button>
         <div class="date-label" id="relDateLabel">hoje</div>
@@ -468,14 +472,14 @@
       <div class="section-title" style="margin-top:16px;">Detalhamento</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Origem</th><th>Destino</th><th>Tipo</th><th>Detalhe</th><th style="text-align:right">Qtd</th></tr></thead>
+          <thead><tr id="relTableHead"><th>Origem</th><th>Destino</th><th>Tipo</th><th>Detalhe</th><th style="text-align:right">Qtd</th></tr></thead>
           <tbody id="relTableBody"></tbody>
         </table>
       </div>
-      <button class="btn-secondary" id="btnCopiar" style="margin-top:16px;">Copiar relatório do dia</button>
-      <button class="btn-primary" id="btnPdf" style="margin-top:10px;">Baixar PDF do dia</button>
+      <button class="btn-secondary" id="btnCopiar" style="margin-top:16px;">Copiar relatório</button>
+      <button class="btn-primary" id="btnPdf" style="margin-top:10px;">Baixar PDF</button>
       <button class="btn-primary" id="btnWhats" style="margin-top:10px; background:#25D366; box-shadow:0 6px 16px rgba(37,211,102,0.28);">Compartilhar PDF no WhatsApp</button>
-      <button class="btn-secondary" id="btnExcel" style="margin-top:10px;">Exportar Excel do dia</button>
+      <button class="btn-secondary" id="btnExcel" style="margin-top:10px;">Exportar Excel</button>
     </section>
 
     <!-- HISTORICO -->
@@ -588,6 +592,7 @@ if(isConfigured){
   let editingId = null;
   let hojeDate = todayISO();
   let relDate = todayISO();
+  let relMode = 'dia'; // 'dia' | 'semana'
 
   function todayISO(){
     const d = new Date();
@@ -605,6 +610,45 @@ if(isConfigured){
     const dt = new Date(y, m-1, d);
     dt.setDate(dt.getDate()+delta);
     return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  }
+  // Retorna {start, end} (ISO) da semana domingo–sábado que contém a data informada.
+  function weekRange(iso){
+    const [y,m,d] = iso.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    const dow = dt.getDay(); // 0 = domingo
+    const start = new Date(dt); start.setDate(dt.getDate() - dow);
+    const end = new Date(dt); end.setDate(dt.getDate() + (6 - dow));
+    const toISO = (x)=> x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+    return { start: toISO(start), end: toISO(end) };
+  }
+  function fmtWeekLabel(iso){
+    const { start, end } = weekRange(iso);
+    const [sy,sm,sd] = start.split('-').map(Number);
+    const [ey,em,ed] = end.split('-').map(Number);
+    const sDt = new Date(sy,sm-1,sd), eDt = new Date(ey,em-1,ed);
+    const sLabel = sDt.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
+    const eLabel = eDt.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
+    const { start: curStart } = weekRange(todayISO());
+    const prefix = start === curStart ? 'Esta semana · ' : '';
+    return `${prefix}${sLabel} – ${eLabel}`;
+  }
+  // Lista de registros do período atualmente selecionado no Relatório (dia ou semana).
+  function reportList(){
+    if(relMode === 'semana'){
+      const { start, end } = weekRange(relDate);
+      return data.filter(r=>r.data >= start && r.data <= end);
+    }
+    return data.filter(r=>r.data===relDate);
+  }
+  function reportLabel(){
+    return relMode === 'semana' ? fmtWeekLabel(relDate) : fmtDateLabel(relDate);
+  }
+  function reportFileTag(){
+    if(relMode === 'semana'){
+      const { start, end } = weekRange(relDate);
+      return `${start}_a_${end}`;
+    }
+    return relDate;
   }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
   function showToast(msg){
@@ -813,12 +857,12 @@ if(isConfigured){
 
   // ---------- RELATORIO VIEW ----------
   function renderRelatorio(){
-    document.getElementById('relDateLabel').textContent = fmtDateLabel(relDate);
-    const list = data.filter(r=>r.data===relDate);
+    document.getElementById('relDateLabel').textContent = reportLabel();
+    const list = reportList();
     const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
     document.getElementById('relTotalAnimais').textContent = totalAnimais;
     document.getElementById('relTotalRegistros').textContent = list.length;
-    document.getElementById('printDateLabel').textContent = fmtDateLabel(relDate) + ' · ' + totalAnimais + ' animais em ' + list.length + ' registro(s)';
+    document.getElementById('printDateLabel').textContent = reportLabel() + ' · ' + totalAnimais + ' animais em ' + list.length + ' registro(s)';
 
     const byType = {};
     list.forEach(r=>{
@@ -829,7 +873,7 @@ if(isConfigured){
     const breakdownEl = document.getElementById('relBreakdown');
     const typeIds = Object.keys(byType);
     if(typeIds.length===0){
-      breakdownEl.innerHTML = `<div class="empty-state"><div class="glyph">&#128203;</div><p>Sem registros nesta data.</p></div>`;
+      breakdownEl.innerHTML = `<div class="empty-state"><div class="glyph">&#128203;</div><p>Sem registros neste período.</p></div>`;
     }else{
       breakdownEl.innerHTML = typeIds.sort((a,b)=>byType[b].qtd-byType[a].qtd).map(id=>{
         const t = typeMap[id] || TYPES[0];
@@ -844,26 +888,31 @@ if(isConfigured){
 
     const tbody = document.getElementById('relTableBody');
     if(list.length===0){
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--texto-muted); padding:14px 4px;">—</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--texto-muted); padding:14px 4px;">—</td></tr>`;
     }else{
       tbody.innerHTML = list.sort((a,b)=>a.criadoEm-b.criadoEm).map(r=>{
         const t = typeMap[r.tipo] || TYPES[0];
         const detalhe = r.tipo === 'entrada'
           ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
           : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
-        const linhaPrincipal = `<tr><td>${escapeHtml(r.curralOrigem)}</td><td>${escapeHtml(r.curralDestino)}</td><td>${t.short}</td><td>${escapeHtml(detalhe) || '—'}</td><td class="num">${r.qtd}</td></tr>`;
-        const linhaObs = r.obs ? `<tr><td colspan="5" style="border-top:none; padding-top:0; padding-bottom:9px; font-size:11px; font-style:italic; color:var(--texto-muted);">Obs: ${escapeHtml(r.obs)}</td></tr>` : '';
+        const dataCol = relMode === 'semana' ? `<td>${r.data.slice(5).split('-').reverse().join('/')}</td>` : '';
+        const linhaPrincipal = `<tr>${dataCol}<td>${escapeHtml(r.curralOrigem)}</td><td>${escapeHtml(r.curralDestino)}</td><td>${t.short}</td><td>${escapeHtml(detalhe) || '—'}</td><td class="num">${r.qtd}</td></tr>`;
+        const linhaObs = r.obs ? `<tr><td colspan="6" style="border-top:none; padding-top:0; padding-bottom:9px; font-size:11px; font-style:italic; color:var(--texto-muted);">Obs: ${escapeHtml(r.obs)}</td></tr>` : '';
         return linhaPrincipal + linhaObs;
       }).join('');
     }
+    document.getElementById('relTableHead').innerHTML =
+      (relMode === 'semana' ? '<th>Data</th>' : '') +
+      '<th>Origem</th><th>Destino</th><th>Tipo</th><th>Detalhe</th><th style="text-align:right">Qtd</th>';
   }
 
   function buildPdfDoc(){
     const { jsPDF } = window.jspdf;
     const docPdf = new jsPDF({ unit: 'pt', format: 'a4' });
-    const list = data.filter(r=>r.data===relDate).sort((a,b)=>a.criadoEm-b.criadoEm);
+    const list = reportList().sort((a,b)=>a.criadoEm-b.criadoEm);
     const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
     const marginX = 40;
+    const isSemana = relMode === 'semana';
     let y = 50;
 
     docPdf.setFont('helvetica','bold');
@@ -874,7 +923,7 @@ if(isConfigured){
     docPdf.setFont('helvetica','normal');
     docPdf.setFontSize(11);
     docPdf.setTextColor(107,122,118);
-    docPdf.text(`${fmtDateLabel(relDate)}  ·  ${totalAnimais} animais em ${list.length} registro(s)`, marginX, y);
+    docPdf.text(`${reportLabel()}  ·  ${totalAnimais} animais em ${list.length} registro(s)`, marginX, y);
     y += 26;
 
     const byType = {};
@@ -901,10 +950,13 @@ if(isConfigured){
     docPdf.setFontSize(12);
     docPdf.text('Detalhamento', marginX, y);
     y += 8;
-    const colX = { origem: marginX, destino: marginX+90, tipo: marginX+180, detalhe: marginX+250, qtd: 555 };
+    const colX = isSemana
+      ? { data: marginX, origem: marginX+55, destino: marginX+135, tipo: marginX+215, detalhe: marginX+275, qtd: 555 }
+      : { origem: marginX, destino: marginX+90, tipo: marginX+180, detalhe: marginX+250, qtd: 555 };
     y += 14;
     docPdf.setFontSize(9.5);
     docPdf.setTextColor(107,122,118);
+    if(isSemana) docPdf.text('Data', colX.data, y);
     docPdf.text('Origem', colX.origem, y);
     docPdf.text('Destino', colX.destino, y);
     docPdf.text('Tipo', colX.tipo, y);
@@ -923,10 +975,11 @@ if(isConfigured){
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
         : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Esc. '+r.escala : '', r.embarque ? 'Emb. '+r.embarque : '', r.refugoDente ? 'Ref.dente '+r.refugoDente : '', r.refugoPeso ? 'Ref.peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+      if(isSemana) docPdf.text(r.data.slice(5).split('-').reverse().join('/'), colX.data, y);
       docPdf.text(String(r.curralOrigem||'—'), colX.origem, y);
       docPdf.text(String(r.curralDestino||'—'), colX.destino, y);
       docPdf.text(t.short, colX.tipo, y);
-      docPdf.text(String(detalhe||'—').slice(0,40), colX.detalhe, y);
+      docPdf.text(String(detalhe||'—').slice(0,isSemana?32:40), colX.detalhe, y);
       docPdf.text(String(r.qtd), colX.qtd, y, {align:'right'});
       y += 15;
       if(r.obs){
@@ -943,7 +996,7 @@ if(isConfigured){
   }
 
   function buildReportText(){
-    const list = data.filter(r=>r.data===relDate);
+    const list = reportList();
     const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
     const byType = {};
     list.forEach(r=>{
@@ -951,7 +1004,7 @@ if(isConfigured){
       byType[r.tipo].qtd += Number(r.qtd);
       byType[r.tipo].count += 1;
     });
-    let txt = `RELATÓRIO DE PROCESSAMENTO — ${fmtDateLabel(relDate)}\n`;
+    let txt = `RELATÓRIO DE PROCESSAMENTO — ${reportLabel()}\n`;
     txt += `Total: ${totalAnimais} animais em ${list.length} registro(s)\n\n`;
     txt += `Por tipo:\n`;
     Object.keys(byType).sort((a,b)=>byType[b].qtd-byType[a].qtd).forEach(id=>{
@@ -964,7 +1017,8 @@ if(isConfigured){
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor ? 'fornecedor: '+r.fornecedor : '', r.raca ? 'raça: '+r.raca : ''].filter(Boolean).join(' · ')
         : [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : '', r.refugoDente ? 'refugo dente: '+r.refugoDente : '', r.refugoPeso ? 'refugo peso: '+r.refugoPeso : ''].filter(Boolean).join(' · ');
-      txt += `- ${r.curralOrigem} → ${r.curralDestino} · ${t.short} · ${r.qtd} cab.${detalhe ? ' · '+detalhe : ''}${r.obs ? ' · '+r.obs : ''}\n`;
+      const dataPrefix = relMode === 'semana' ? `[${r.data}] ` : '';
+      txt += `- ${dataPrefix}${r.curralOrigem} → ${r.curralDestino} · ${t.short} · ${r.qtd} cab.${detalhe ? ' · '+detalhe : ''}${r.obs ? ' · '+r.obs : ''}\n`;
     });
     return txt;
   }
@@ -993,7 +1047,11 @@ if(isConfigured){
     el.querySelectorAll('.hist-card').forEach(card=>{
       card.addEventListener('click', ()=>{
         relDate = card.dataset.date;
+        relMode = 'dia';
+        document.getElementById('modeDia').classList.add('active');
+        document.getElementById('modeSemana').classList.remove('active');
         switchView('relatorio');
+        renderRelatorio();
       });
     });
   }
@@ -1021,8 +1079,20 @@ if(isConfigured){
 
   document.getElementById('hojePrev').addEventListener('click', ()=>{ hojeDate = shiftDate(hojeDate,-1); renderHoje(); });
   document.getElementById('hojeNext').addEventListener('click', ()=>{ hojeDate = shiftDate(hojeDate,1); renderHoje(); });
-  document.getElementById('relPrev').addEventListener('click', ()=>{ relDate = shiftDate(relDate,-1); renderRelatorio(); });
-  document.getElementById('relNext').addEventListener('click', ()=>{ relDate = shiftDate(relDate,1); renderRelatorio(); });
+  document.getElementById('relPrev').addEventListener('click', ()=>{ relDate = shiftDate(relDate, relMode==='semana' ? -7 : -1); renderRelatorio(); });
+  document.getElementById('relNext').addEventListener('click', ()=>{ relDate = shiftDate(relDate, relMode==='semana' ? 7 : 1); renderRelatorio(); });
+  document.getElementById('modeDia').addEventListener('click', ()=>{
+    relMode = 'dia';
+    document.getElementById('modeDia').classList.add('active');
+    document.getElementById('modeSemana').classList.remove('active');
+    renderRelatorio();
+  });
+  document.getElementById('modeSemana').addEventListener('click', ()=>{
+    relMode = 'semana';
+    document.getElementById('modeSemana').classList.add('active');
+    document.getElementById('modeDia').classList.remove('active');
+    renderRelatorio();
+  });
 
   document.getElementById('btnCopiar').addEventListener('click', async ()=>{
     const txt = buildReportText();
@@ -1040,22 +1110,22 @@ if(isConfigured){
   });
 
   document.getElementById('btnWhats').addEventListener('click', async ()=>{
-    const list = data.filter(r=>r.data===relDate);
+    const list = reportList();
     if(list.length===0){
-      showToast('Sem registros nesta data');
+      showToast('Sem registros neste período');
       return;
     }
     try{
       const docPdf = buildPdfDoc();
       const blob = docPdf.output('blob');
-      const fileName = `relatorio-processamento-${relDate}.pdf`;
+      const fileName = `relatorio-processamento-${reportFileTag()}.pdf`;
       const file = new File([blob], fileName, { type: 'application/pdf' });
 
       if(navigator.canShare && navigator.canShare({ files: [file] })){
         await navigator.share({
           files: [file],
           title: 'Relatório de Processamento',
-          text: `Relatório de processamento — ${fmtDateLabel(relDate)}`
+          text: `Relatório de processamento — ${reportLabel()}`
         });
       }else{
         docPdf.save(fileName);
@@ -1090,9 +1160,9 @@ if(isConfigured){
   }
 
   document.getElementById('btnExcel').addEventListener('click', ()=>{
-    const list = data.filter(r=>r.data===relDate).sort((a,b)=>a.criadoEm-b.criadoEm);
+    const list = reportList().sort((a,b)=>a.criadoEm-b.criadoEm);
     if(list.length===0){
-      showToast('Sem registros nesta data');
+      showToast('Sem registros neste período');
       return;
     }
     const rows = recordsToRows(list);
@@ -1100,7 +1170,7 @@ if(isConfigured){
     ws['!cols'] = Object.keys(rows[0]).map(k=>({ wch: Math.max(k.length, 12) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
-    XLSX.writeFile(wb, `relatorio-processamento-${relDate}.xlsx`);
+    XLSX.writeFile(wb, `relatorio-processamento-${reportFileTag()}.xlsx`);
   });
 
   document.getElementById('btnExcelTudo').addEventListener('click', ()=>{
