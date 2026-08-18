@@ -313,7 +313,7 @@
   @media print{
     body{background:#fff;}
     #app{max-width:none; min-height:0; box-shadow:none;}
-    header, nav, .toast, #btnCopiar, #btnPdf, #btnWhats, #btnExcel, #btnLogout, .date-nav button, #modeDia, #modeSemana, #setupOverlay, #loginOverlay{display:none !important;}
+    header, nav, .toast, #btnCopiar, #btnPdf, #btnWhats, #btnExcel, #btnExcelTudo, #btnImportar, #btnLogout, .date-nav button, #modeDia, #modeSemana, #setupOverlay, #loginOverlay{display:none !important;}
     main{padding:0; overflow:visible;}
     .view{display:none !important;}
     .view.active{display:block !important;}
@@ -469,6 +469,13 @@
       </div>
       <div class="section-title">Por tipo de processamento</div>
       <div class="table-wrap" id="relBreakdown"></div>
+      <div class="section-title" style="margin-top:16px;" id="embarquesTitle">Embarques</div>
+      <div class="table-wrap" id="embarquesWrap">
+        <table>
+          <thead><tr><th>Data</th><th>Embarque</th><th>Carimbo</th><th>Destino</th><th style="text-align:right">Animais</th></tr></thead>
+          <tbody id="embarquesBody"></tbody>
+        </table>
+      </div>
       <div class="section-title" style="margin-top:16px;">Detalhamento</div>
       <div class="table-wrap">
         <table>
@@ -485,7 +492,9 @@
     <!-- HISTORICO -->
     <section class="view" id="view-historico">
       <div class="section-title">Histórico por data</div>
-      <button class="btn-secondary" id="btnExcelTudo" style="margin-bottom:16px;">Exportar histórico completo (Excel)</button>
+      <button class="btn-secondary" id="btnExcelTudo" style="margin-bottom:10px;">Exportar histórico completo (Excel)</button>
+      <button class="btn-secondary" id="btnImportar" style="margin-bottom:16px;">Importar planilha (Excel/CSV)</button>
+      <input type="file" id="fileImportar" accept=".xlsx,.xls,.csv" style="display:none;">
       <div id="histList"></div>
     </section>
 
@@ -555,7 +564,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 // ====== CONFIGURAÇÃO DO FIREBASE ======
@@ -856,6 +865,27 @@ if(isConfigured){
   }
 
   // ---------- RELATORIO VIEW ----------
+  // Agrupa os registros de Saída por número de Embarque, somando quantidade e
+  // juntando carimbos/destinos quando houver mais de um carimbo no mesmo embarque.
+  function groupEmbarques(list){
+    const groups = {};
+    list.filter(r=>r.tipo==='saida' && r.embarque).forEach(r=>{
+      const key = String(r.embarque).trim();
+      if(!groups[key]) groups[key] = { embarque:key, qtd:0, carimbos:new Set(), destinos:new Set(), datas:new Set() };
+      groups[key].qtd += Number(r.qtd)||0;
+      if(r.carimbo) groups[key].carimbos.add(r.carimbo);
+      if(r.curralDestino) groups[key].destinos.add(r.curralDestino);
+      if(r.data) groups[key].datas.add(r.data);
+    });
+    return Object.values(groups).map(g=>({
+      embarque: g.embarque,
+      qtd: g.qtd,
+      carimbo: [...g.carimbos].join(', ') || '—',
+      destino: [...g.destinos].join(', ') || '—',
+      data: [...g.datas].sort().join(', ') || '—',
+    })).sort((a,b)=> a.data.localeCompare(b.data) || a.embarque.localeCompare(b.embarque));
+  }
+
   function renderRelatorio(){
     document.getElementById('relDateLabel').textContent = reportLabel();
     const list = reportList();
@@ -884,6 +914,17 @@ if(isConfigured){
           <div class="breakdown-num">${d.qtd}</div>
         </div>`;
       }).join('');
+    }
+
+    const embarques = groupEmbarques(list);
+    const embBody = document.getElementById('embarquesBody');
+    document.getElementById('embarquesTitle').textContent = `Embarques ${embarques.length ? '('+embarques.length+')' : ''}`;
+    if(embarques.length===0){
+      embBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--texto-muted); padding:14px 4px;">—</td></tr>`;
+    }else{
+      embBody.innerHTML = embarques.map(e=>
+        `<tr><td>${escapeHtml(e.data)}</td><td>${escapeHtml(e.embarque)}</td><td>${escapeHtml(e.carimbo)}</td><td>${escapeHtml(e.destino)}</td><td class="num">${e.qtd}</td></tr>`
+      ).join('');
     }
 
     const tbody = document.getElementById('relTableBody');
@@ -945,6 +986,23 @@ if(isConfigured){
       y += 15;
     });
     y += 12;
+
+    const embarques = groupEmbarques(list);
+    if(embarques.length){
+      docPdf.setFont('helvetica','bold');
+      docPdf.setFontSize(12);
+      docPdf.setTextColor(26,53,48);
+      docPdf.text(`Embarques (${embarques.length})`, marginX, y);
+      y += 16;
+      docPdf.setFont('helvetica','normal');
+      docPdf.setFontSize(10.5);
+      embarques.forEach(e=>{
+        if(y > 780){ docPdf.addPage(); y = 50; }
+        docPdf.text(`${e.data}  ·  Embarque ${e.embarque}  ·  Carimbo ${e.carimbo}  ·  ${e.destino}  ·  ${e.qtd} cab.`, marginX, y);
+        y += 15;
+      });
+      y += 12;
+    }
 
     docPdf.setFont('helvetica','bold');
     docPdf.setFontSize(12);
@@ -1011,6 +1069,13 @@ if(isConfigured){
       const t = typeMap[id] || TYPES[0];
       txt += `- ${t.label}: ${byType[id].qtd} cab. (${byType[id].count} lote${byType[id].count>1?'s':''})\n`;
     });
+    const embarques = groupEmbarques(list);
+    if(embarques.length){
+      txt += `\nEmbarques (${embarques.length}):\n`;
+      embarques.forEach(e=>{
+        txt += `- ${e.data} · Embarque ${e.embarque} · Carimbo ${e.carimbo} · ${e.destino} · ${e.qtd} cab.\n`;
+      });
+    }
     txt += `\nDetalhamento:\n`;
     list.sort((a,b)=>a.criadoEm-b.criadoEm).forEach(r=>{
       const t = typeMap[r.tipo] || TYPES[0];
@@ -1185,6 +1250,85 @@ if(isConfigured){
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
     XLSX.writeFile(wb, `historico-processamento-completo.xlsx`);
+  });
+
+  // ---------- IMPORTAR ----------
+  function parseDataFlexivel(v){
+    if(v instanceof Date){
+      return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+    }
+    const s = String(v||'').trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const br = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if(br){
+      let [,d,m,y] = br;
+      if(y.length===2) y = '20'+y;
+      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    const dt = new Date(s);
+    if(!isNaN(dt)) return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    return '';
+  }
+  function rowToRecord(row){
+    const tipoTxt = String(row['Tipo']||'').trim().toLowerCase();
+    const tipoObj = TYPES.find(t=> t.short.toLowerCase() === tipoTxt || t.id === tipoTxt);
+    if(!tipoObj) return null;
+    const record = {
+      tipo: tipoObj.id,
+      data: parseDataFlexivel(row['Data']),
+      curralOrigem: String(row['Curral Origem']||'').trim(),
+      curralDestino: String(row['Curral Destino']||'').trim(),
+      qtd: Number(row['Quantidade']) || 0,
+      obs: String(row['Observações']||'').trim(),
+      criadoEm: Date.now(),
+    };
+    if(tipoObj.id === 'entrada'){
+      record.fornecedor = String(row['Fornecedor']||'').trim();
+      record.raca = String(row['Raça predominante']||'').trim();
+    }else{
+      record.carimbo = String(row['Carimbo']||'').trim();
+      record.escala = String(row['Escala']||'').trim();
+      record.embarque = String(row['Embarque']||'').trim();
+      record.refugoDente = Number(row['Refugo de dente']) || 0;
+      record.refugoPeso = Number(row['Refugo de peso']) || 0;
+    }
+    if(!record.data || !record.curralOrigem || !record.curralDestino || !record.qtd) return null;
+    return record;
+  }
+  document.getElementById('btnImportar').addEventListener('click', ()=>{
+    if(!db){ showToast('Configure o Firestore primeiro'); return; }
+    document.getElementById('fileImportar').click();
+  });
+  document.getElementById('fileImportar').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array', cellDates:true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      const records = rows.map(rowToRecord).filter(Boolean);
+      const skipped = rows.length - records.length;
+      if(records.length===0){
+        showToast('Nenhuma linha válida encontrada na planilha');
+        return;
+      }
+      showToast(`Importando ${records.length} registro(s)...`);
+      const chunkSize = 450; // margem sob o limite de 500 operações por batch do Firestore
+      for(let i=0; i<records.length; i+=chunkSize){
+        const batch = writeBatch(db);
+        records.slice(i, i+chunkSize).forEach(rec=>{
+          const ref = doc(collection(db, FIRESTORE_COLLECTION));
+          batch.set(ref, rec);
+        });
+        await batch.commit();
+      }
+      showToast(`${records.length} registro(s) importado(s)${skipped ? ' · '+skipped+' linha(s) ignorada(s)' : ''}`);
+    }catch(err){
+      console.error(err);
+      showToast('Erro ao importar. Confira o formato da planilha.');
+    }
   });
 
   // ---------- FORM ----------
