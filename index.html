@@ -366,19 +366,23 @@
             <input type="date" id="fData" required>
           </div>
           <div class="field">
-            <label>Qtd. animais</label>
+            <label id="labelQtd">Qtd. animais</label>
             <input type="number" id="fQtd" min="1" placeholder="0" required>
           </div>
         </div>
-        <div class="row-2">
+        <div class="row-2" id="rowCurralOrigem">
           <div class="field">
             <label>Curral origem</label>
-            <input type="text" id="fCurralOrigem" placeholder="Ex: C-14" required>
+            <input type="text" id="fCurralOrigem" placeholder="Ex: C-14">
           </div>
           <div class="field">
-            <label>Curral destino</label>
+            <label id="labelCurralDestino">Curral destino</label>
             <input type="text" id="fCurralDestino" placeholder="Ex: C-22" required>
           </div>
+        </div>
+        <div class="field" id="rowDestinoSolo" style="display:none;">
+          <label>Destino</label>
+          <input type="text" id="fDestinoSolo" placeholder="Ex: Frigorífico JBS">
         </div>
 
         <!-- Campos exclusivos: Entrada (Boi Magro) -->
@@ -420,6 +424,14 @@
               <label>Refugo de peso</label>
               <input type="number" id="fRefugoPeso" min="0" placeholder="0">
             </div>
+          </div>
+        </div>
+
+        <!-- Campos exclusivos: Embarque -->
+        <div id="camposEmbarque" style="display:none;">
+          <div class="field">
+            <label>Carimbo</label>
+            <input type="text" id="fCarimboEmb" placeholder="Nº do carimbo">
           </div>
         </div>
 
@@ -472,7 +484,7 @@
       <div class="section-title" style="margin-top:16px;" id="embarquesTitle">Embarques</div>
       <div class="table-wrap" id="embarquesWrap">
         <table>
-          <thead><tr><th>Data</th><th>Embarque</th><th>Carimbo</th><th>Destino</th><th style="text-align:right">Animais</th></tr></thead>
+          <thead><tr><th>Data</th><th>Carimbo</th><th>Destino</th><th style="text-align:right">Animais</th></tr></thead>
           <tbody id="embarquesBody"></tbody>
         </table>
       </div>
@@ -594,6 +606,7 @@ if(isConfigured){
   const TYPES = [
     {id:'entrada', label:'Entrada · Boi Magro', short:'Entrada', color:'#268A75'},
     {id:'saida', label:'Saída · Boi Gordo', short:'Saída', color:'#F97316'},
+    {id:'embarque', label:'Embarque', short:'Embarque', color:'#3E8FB0'},
   ];
   const typeMap = Object.fromEntries(TYPES.map(t=>[t.id,t]));
   let data = [];
@@ -763,9 +776,13 @@ if(isConfigured){
     });
   }
   function toggleTypeFields(){
-    const isEntrada = selectedType === 'entrada';
-    document.getElementById('camposEntrada').style.display = isEntrada ? 'block' : 'none';
-    document.getElementById('camposSaida').style.display = isEntrada ? 'none' : 'block';
+    document.getElementById('camposEntrada').style.display = selectedType === 'entrada' ? 'block' : 'none';
+    document.getElementById('camposSaida').style.display = selectedType === 'saida' ? 'block' : 'none';
+    document.getElementById('camposEmbarque').style.display = selectedType === 'embarque' ? 'block' : 'none';
+    const isEmbarque = selectedType === 'embarque';
+    document.getElementById('rowCurralOrigem').style.display = isEmbarque ? 'none' : 'grid';
+    document.getElementById('rowDestinoSolo').style.display = isEmbarque ? 'block' : 'none';
+    document.getElementById('labelQtd').textContent = isEmbarque ? 'Total de animais' : 'Qtd. animais';
   }
 
   // ---------- EDIT ----------
@@ -778,17 +795,20 @@ if(isConfigured){
     document.getElementById('fData').value = record.data || '';
     document.getElementById('fCurralOrigem').value = record.curralOrigem || '';
     document.getElementById('fCurralDestino').value = record.curralDestino || '';
+    document.getElementById('fDestinoSolo').value = record.curralDestino || '';
     document.getElementById('fQtd').value = record.qtd || '';
     document.getElementById('fObs').value = record.obs || '';
     if(record.tipo === 'entrada'){
       document.getElementById('fFornecedor').value = record.fornecedor || '';
       document.getElementById('fRaca').value = record.raca || '';
-    }else{
+    }else if(record.tipo === 'saida'){
       document.getElementById('fCarimbo').value = record.carimbo || '';
       document.getElementById('fEscala').value = record.escala || '';
       document.getElementById('fEmbarque').value = record.embarque || '';
       document.getElementById('fRefugoDente').value = record.refugoDente || '';
       document.getElementById('fRefugoPeso').value = record.refugoPeso || '';
+    }else if(record.tipo === 'embarque'){
+      document.getElementById('fCarimboEmb').value = record.carimbo || '';
     }
 
     document.getElementById('novoTitle').textContent = 'Editar processamento';
@@ -832,15 +852,21 @@ if(isConfigured){
       const hora = new Date(r.criadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
-        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+        : r.tipo === 'saida'
+        ? [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ')
+        : (r.carimbo ? 'Carimbo '+r.carimbo : '');
+      const tagTexto = r.curralOrigem || r.carimbo || t.short.slice(0,3);
+      const linhaLocal = r.curralOrigem
+        ? `${escapeHtml(r.curralOrigem)} &#8594; ${escapeHtml(r.curralDestino)}`
+        : `Destino: ${escapeHtml(r.curralDestino || '—')}`;
       return `<div class="entry-card">
-        <div class="entry-tag" style="background:${t.color}">${escapeHtml(r.curralOrigem||'').slice(0,4)}</div>
+        <div class="entry-tag" style="background:${t.color}">${escapeHtml(tagTexto).slice(0,4)}</div>
         <div class="entry-body">
           <div class="entry-top">
             <div class="entry-type">${t.short}</div>
             <div class="entry-qtd">${r.qtd} cab.</div>
           </div>
-          <div class="entry-meta"><span>${escapeHtml(r.curralOrigem)} &#8594; ${escapeHtml(r.curralDestino)}</span><span>${hora}</span></div>
+          <div class="entry-meta"><span>${linhaLocal}</span><span>${hora}</span></div>
           ${detalhe ? `<div class="entry-meta">${escapeHtml(detalhe)}</div>` : ''}
           ${r.obs ? `<div class="entry-obs">${escapeHtml(r.obs)}</div>` : ''}
         </div>
@@ -867,23 +893,14 @@ if(isConfigured){
   // ---------- RELATORIO VIEW ----------
   // Agrupa os registros de Saída por número de Embarque, somando quantidade e
   // juntando carimbos/destinos quando houver mais de um carimbo no mesmo embarque.
-  function groupEmbarques(list){
-    const groups = {};
-    list.filter(r=>r.tipo==='saida' && r.embarque).forEach(r=>{
-      const key = String(r.embarque).trim();
-      if(!groups[key]) groups[key] = { embarque:key, qtd:0, carimbos:new Set(), destinos:new Set(), datas:new Set() };
-      groups[key].qtd += Number(r.qtd)||0;
-      if(r.carimbo) groups[key].carimbos.add(r.carimbo);
-      if(r.curralDestino) groups[key].destinos.add(r.curralDestino);
-      if(r.data) groups[key].datas.add(r.data);
-    });
-    return Object.values(groups).map(g=>({
-      embarque: g.embarque,
-      qtd: g.qtd,
-      carimbo: [...g.carimbos].join(', ') || '—',
-      destino: [...g.destinos].join(', ') || '—',
-      data: [...g.datas].sort().join(', ') || '—',
-    })).sort((a,b)=> a.data.localeCompare(b.data) || a.embarque.localeCompare(b.embarque));
+  // Lista os registros do tipo "Embarque" (lançados manualmente), sem agrupar nem calcular nada.
+  function embarquesList(list){
+    return list.filter(r=>r.tipo==='embarque').map(r=>({
+      data: r.data || '—',
+      carimbo: r.carimbo || '—',
+      destino: r.curralDestino || '—',
+      qtd: Number(r.qtd)||0,
+    })).sort((a,b)=> a.data.localeCompare(b.data));
   }
 
   function renderRelatorio(){
@@ -916,14 +933,14 @@ if(isConfigured){
       }).join('');
     }
 
-    const embarques = groupEmbarques(list);
+    const embarques = embarquesList(list);
     const embBody = document.getElementById('embarquesBody');
     document.getElementById('embarquesTitle').textContent = `Embarques ${embarques.length ? '('+embarques.length+')' : ''}`;
     if(embarques.length===0){
-      embBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--texto-muted); padding:14px 4px;">—</td></tr>`;
+      embBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--texto-muted); padding:14px 4px;">—</td></tr>`;
     }else{
       embBody.innerHTML = embarques.map(e=>
-        `<tr><td>${escapeHtml(e.data)}</td><td>${escapeHtml(e.embarque)}</td><td>${escapeHtml(e.carimbo)}</td><td>${escapeHtml(e.destino)}</td><td class="num">${e.qtd}</td></tr>`
+        `<tr><td>${escapeHtml(e.data)}</td><td>${escapeHtml(e.carimbo)}</td><td>${escapeHtml(e.destino)}</td><td class="num">${e.qtd}</td></tr>`
       ).join('');
     }
 
@@ -935,9 +952,11 @@ if(isConfigured){
         const t = typeMap[r.tipo] || TYPES[0];
         const detalhe = r.tipo === 'entrada'
           ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
-          : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+          : r.tipo === 'saida'
+          ? [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ')
+          : (r.carimbo ? 'Carimbo '+r.carimbo : '');
         const dataCol = relMode === 'semana' ? `<td>${r.data.slice(5).split('-').reverse().join('/')}</td>` : '';
-        const linhaPrincipal = `<tr>${dataCol}<td>${escapeHtml(r.curralOrigem)}</td><td>${escapeHtml(r.curralDestino)}</td><td>${t.short}</td><td>${escapeHtml(detalhe) || '—'}</td><td class="num">${r.qtd}</td></tr>`;
+        const linhaPrincipal = `<tr>${dataCol}<td>${escapeHtml(r.curralOrigem||'—')}</td><td>${escapeHtml(r.curralDestino)}</td><td>${t.short}</td><td>${escapeHtml(detalhe) || '—'}</td><td class="num">${r.qtd}</td></tr>`;
         const linhaObs = r.obs ? `<tr><td colspan="6" style="border-top:none; padding-top:0; padding-bottom:9px; font-size:11px; font-style:italic; color:var(--texto-muted);">Obs: ${escapeHtml(r.obs)}</td></tr>` : '';
         return linhaPrincipal + linhaObs;
       }).join('');
@@ -987,7 +1006,7 @@ if(isConfigured){
     });
     y += 12;
 
-    const embarques = groupEmbarques(list);
+    const embarques = embarquesList(list);
     if(embarques.length){
       docPdf.setFont('helvetica','bold');
       docPdf.setFontSize(12);
@@ -998,7 +1017,7 @@ if(isConfigured){
       docPdf.setFontSize(10.5);
       embarques.forEach(e=>{
         if(y > 780){ docPdf.addPage(); y = 50; }
-        docPdf.text(`${e.data}  ·  Embarque ${e.embarque}  ·  Carimbo ${e.carimbo}  ·  ${e.destino}  ·  ${e.qtd} cab.`, marginX, y);
+        docPdf.text(`${e.data}  ·  Carimbo ${e.carimbo}  ·  ${e.destino}  ·  ${e.qtd} cab.`, marginX, y);
         y += 15;
       });
       y += 12;
@@ -1032,7 +1051,9 @@ if(isConfigured){
       const t = typeMap[r.tipo] || TYPES[0];
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
-        : [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Esc. '+r.escala : '', r.embarque ? 'Emb. '+r.embarque : '', r.refugoDente ? 'Ref.dente '+r.refugoDente : '', r.refugoPeso ? 'Ref.peso '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+        : r.tipo === 'saida'
+        ? [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Esc. '+r.escala : '', r.embarque ? 'Emb. '+r.embarque : '', r.refugoDente ? 'Ref.dente '+r.refugoDente : '', r.refugoPeso ? 'Ref.peso '+r.refugoPeso : ''].filter(Boolean).join(' · ')
+        : (r.carimbo ? 'Carimbo '+r.carimbo : '');
       if(isSemana) docPdf.text(r.data.slice(5).split('-').reverse().join('/'), colX.data, y);
       docPdf.text(String(r.curralOrigem||'—'), colX.origem, y);
       docPdf.text(String(r.curralDestino||'—'), colX.destino, y);
@@ -1069,11 +1090,11 @@ if(isConfigured){
       const t = typeMap[id] || TYPES[0];
       txt += `- ${t.label}: ${byType[id].qtd} cab. (${byType[id].count} lote${byType[id].count>1?'s':''})\n`;
     });
-    const embarques = groupEmbarques(list);
+    const embarques = embarquesList(list);
     if(embarques.length){
       txt += `\nEmbarques (${embarques.length}):\n`;
       embarques.forEach(e=>{
-        txt += `- ${e.data} · Embarque ${e.embarque} · Carimbo ${e.carimbo} · ${e.destino} · ${e.qtd} cab.\n`;
+        txt += `- ${e.data} · Carimbo ${e.carimbo} · ${e.destino} · ${e.qtd} cab.\n`;
       });
     }
     txt += `\nDetalhamento:\n`;
@@ -1081,9 +1102,12 @@ if(isConfigured){
       const t = typeMap[r.tipo] || TYPES[0];
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor ? 'fornecedor: '+r.fornecedor : '', r.raca ? 'raça: '+r.raca : ''].filter(Boolean).join(' · ')
-        : [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : '', r.refugoDente ? 'refugo dente: '+r.refugoDente : '', r.refugoPeso ? 'refugo peso: '+r.refugoPeso : ''].filter(Boolean).join(' · ');
+        : r.tipo === 'saida'
+        ? [r.carimbo ? 'carimbo: '+r.carimbo : '', r.escala ? 'escala: '+r.escala : '', r.embarque ? 'embarque: '+r.embarque : '', r.refugoDente ? 'refugo dente: '+r.refugoDente : '', r.refugoPeso ? 'refugo peso: '+r.refugoPeso : ''].filter(Boolean).join(' · ')
+        : (r.carimbo ? 'carimbo: '+r.carimbo : '');
       const dataPrefix = relMode === 'semana' ? `[${r.data}] ` : '';
-      txt += `- ${dataPrefix}${r.curralOrigem} → ${r.curralDestino} · ${t.short} · ${r.qtd} cab.${detalhe ? ' · '+detalhe : ''}${r.obs ? ' · '+r.obs : ''}\n`;
+      const local = r.curralOrigem ? `${r.curralOrigem} → ${r.curralDestino}` : `${r.curralDestino}`;
+      txt += `- ${dataPrefix}${local} · ${t.short} · ${r.qtd} cab.${detalhe ? ' · '+detalhe : ''}${r.obs ? ' · '+r.obs : ''}\n`;
     });
     return txt;
   }
@@ -1285,14 +1309,20 @@ if(isConfigured){
     if(tipoObj.id === 'entrada'){
       record.fornecedor = String(row['Fornecedor']||'').trim();
       record.raca = String(row['Raça predominante']||'').trim();
-    }else{
+    }else if(tipoObj.id === 'saida'){
       record.carimbo = String(row['Carimbo']||'').trim();
       record.escala = String(row['Escala']||'').trim();
       record.embarque = String(row['Embarque']||'').trim();
       record.refugoDente = Number(row['Refugo de dente']) || 0;
       record.refugoPeso = Number(row['Refugo de peso']) || 0;
+    }else if(tipoObj.id === 'embarque'){
+      record.carimbo = String(row['Carimbo']||'').trim();
+      record.curralOrigem = '';
     }
-    if(!record.data || !record.curralOrigem || !record.curralDestino || !record.qtd) return null;
+    const camposOk = tipoObj.id === 'embarque'
+      ? (record.data && record.curralDestino && record.qtd)
+      : (record.data && record.curralOrigem && record.curralDestino && record.qtd);
+    if(!camposOk) return null;
     return record;
   }
   document.getElementById('btnImportar').addEventListener('click', ()=>{
@@ -1338,11 +1368,12 @@ if(isConfigured){
       showToast('Configure o Firestore primeiro');
       return;
     }
+    const isEmbarque = selectedType === 'embarque';
     const record = {
       tipo: selectedType,
       data: document.getElementById('fData').value,
-      curralOrigem: document.getElementById('fCurralOrigem').value.trim(),
-      curralDestino: document.getElementById('fCurralDestino').value.trim(),
+      curralOrigem: isEmbarque ? '' : document.getElementById('fCurralOrigem').value.trim(),
+      curralDestino: isEmbarque ? document.getElementById('fDestinoSolo').value.trim() : document.getElementById('fCurralDestino').value.trim(),
       qtd: Number(document.getElementById('fQtd').value),
       obs: document.getElementById('fObs').value.trim(),
       criadoEm: editingId ? (data.find(r=>r.id===editingId)?.criadoEm || Date.now()) : Date.now(),
@@ -1350,14 +1381,19 @@ if(isConfigured){
     if(selectedType === 'entrada'){
       record.fornecedor = document.getElementById('fFornecedor').value.trim();
       record.raca = document.getElementById('fRaca').value.trim();
-    }else{
+    }else if(selectedType === 'saida'){
       record.carimbo = document.getElementById('fCarimbo').value.trim();
       record.escala = document.getElementById('fEscala').value.trim();
       record.embarque = document.getElementById('fEmbarque').value.trim();
       record.refugoDente = Number(document.getElementById('fRefugoDente').value) || 0;
       record.refugoPeso = Number(document.getElementById('fRefugoPeso').value) || 0;
+    }else if(isEmbarque){
+      record.carimbo = document.getElementById('fCarimboEmb').value.trim();
     }
-    if(!record.data || !record.curralOrigem || !record.curralDestino || !record.qtd){
+    const camposOk = isEmbarque
+      ? (record.data && record.curralDestino && record.qtd)
+      : (record.data && record.curralOrigem && record.curralDestino && record.qtd);
+    if(!camposOk){
       showToast('Preencha os campos obrigatórios');
       return;
     }
