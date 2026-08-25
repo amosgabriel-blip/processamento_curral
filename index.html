@@ -573,6 +573,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
@@ -969,107 +970,172 @@ if(isConfigured){
   function buildPdfDoc(){
     const { jsPDF } = window.jspdf;
     const docPdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = docPdf.internal.pageSize.getWidth();
+    const marginX = 40;
+    const contentW = pageW - marginX*2;
     const list = reportList().sort((a,b)=>a.criadoEm-b.criadoEm);
     const totalAnimais = list.reduce((s,r)=>s+Number(r.qtd),0);
-    const marginX = 40;
     const isSemana = relMode === 'semana';
-    let y = 50;
 
+    const VERDE_ESCURO = [26,53,48];
+    const VERDE_LAGE = [38,138,117];
+    const LARANJA = [249,115,22];
+    const MUTED = [107,122,118];
+    const CREME = [247,245,239];
+    const LINHA = [228,225,216];
+
+    // ---------- Cabeçalho ----------
+    const headerH = 70;
+    docPdf.setFillColor(...VERDE_ESCURO);
+    docPdf.rect(0, 0, pageW, headerH, 'F');
     docPdf.setFont('helvetica','bold');
-    docPdf.setFontSize(16);
-    docPdf.setTextColor(26,53,48);
-    docPdf.text('O.L — Relatório de Processamento', marginX, y);
-    y += 20;
+    docPdf.setFontSize(9);
+    docPdf.setTextColor(255,255,255);
+    docPdf.roundedRect(marginX, 20, 30, 20, 4, 4, 'S');
+    docPdf.text('O.L', marginX+15, 33, {align:'center'});
+    docPdf.setFontSize(15);
+    docPdf.text('Relatório de Processamento', marginX+42, 34);
     docPdf.setFont('helvetica','normal');
-    docPdf.setFontSize(11);
-    docPdf.setTextColor(107,122,118);
-    docPdf.text(`${reportLabel()}  ·  ${totalAnimais} animais em ${list.length} registro(s)`, marginX, y);
-    y += 26;
+    docPdf.setFontSize(10.5);
+    docPdf.setTextColor(230,230,225);
+    docPdf.text(reportLabel(), marginX+42, 50);
+    docPdf.setFontSize(8);
+    docPdf.setTextColor(190,200,196);
+    docPdf.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, pageW-marginX, headerH-14, {align:'right'});
 
+    let y = headerH + 30;
+
+    // ---------- KPIs ----------
+    const kpiW = (contentW - 12) / 2;
+    const kpiH = 44;
+    docPdf.setDrawColor(...LINHA);
+    docPdf.setFillColor(255,255,255);
+    docPdf.roundedRect(marginX, y, kpiW, kpiH, 6, 6, 'S');
+    docPdf.roundedRect(marginX+kpiW+12, y, kpiW, kpiH, 6, 6, 'S');
+    docPdf.setFont('helvetica','bold');
+    docPdf.setFontSize(20);
+    docPdf.setTextColor(...VERDE_ESCURO);
+    docPdf.text(String(totalAnimais), marginX+14, y+29);
+    docPdf.text(String(list.length), marginX+kpiW+12+14, y+29);
+    docPdf.setFont('helvetica','normal');
+    docPdf.setFontSize(8.5);
+    docPdf.setTextColor(...MUTED);
+    docPdf.text('ANIMAIS PROCESSADOS', marginX+14, y+kpiH-9);
+    docPdf.text('REGISTROS / LOTES', marginX+kpiW+12+14, y+kpiH-9);
+    y += kpiH + 26;
+
+    // ---------- Por tipo ----------
     const byType = {};
     list.forEach(r=>{
       byType[r.tipo] = byType[r.tipo] || {qtd:0, count:0};
       byType[r.tipo].qtd += Number(r.qtd);
       byType[r.tipo].count += 1;
     });
-    docPdf.setFont('helvetica','bold');
-    docPdf.setFontSize(12);
-    docPdf.setTextColor(26,53,48);
-    docPdf.text('Por tipo', marginX, y);
-    y += 16;
-    docPdf.setFont('helvetica','normal');
-    docPdf.setFontSize(10.5);
-    Object.keys(byType).sort((a,b)=>byType[b].qtd-byType[a].qtd).forEach(id=>{
-      const t = typeMap[id] || TYPES[0];
-      docPdf.text(`${t.label}: ${byType[id].qtd} cab. (${byType[id].count} lote${byType[id].count>1?'s':''})`, marginX, y);
-      y += 15;
-    });
-    y += 12;
+    const typeIds = Object.keys(byType).sort((a,b)=>byType[b].qtd-byType[a].qtd);
+    if(typeIds.length){
+      docPdf.setFont('helvetica','bold');
+      docPdf.setFontSize(11.5);
+      docPdf.setTextColor(...VERDE_ESCURO);
+      docPdf.text('Por tipo de processamento', marginX, y);
+      y += 18;
+      typeIds.forEach(id=>{
+        const t = typeMap[id] || TYPES[0];
+        const d = byType[id];
+        const hex = t.color.replace('#','');
+        const rC = parseInt(hex.slice(0,2),16), gC = parseInt(hex.slice(2,4),16), bC = parseInt(hex.slice(4,6),16);
+        docPdf.setFillColor(rC,gC,bC);
+        docPdf.circle(marginX+4, y-3, 3.5, 'F');
+        docPdf.setFont('helvetica','bold');
+        docPdf.setFontSize(10);
+        docPdf.setTextColor(...VERDE_ESCURO);
+        docPdf.text(t.label, marginX+16, y);
+        docPdf.setFont('helvetica','normal');
+        docPdf.setFontSize(9);
+        docPdf.setTextColor(...MUTED);
+        docPdf.text(`${d.count} lote${d.count>1?'s':''}`, marginX+16+docPdf.getTextWidth(t.label)+8, y);
+        docPdf.setFont('helvetica','bold');
+        docPdf.setFontSize(11);
+        docPdf.setTextColor(...VERDE_ESCURO);
+        docPdf.text(`${d.qtd} cab.`, pageW-marginX, y, {align:'right'});
+        y += 20;
+      });
+      y += 10;
+    }
 
+    // ---------- Embarques ----------
     const embarques = embarquesList(list);
     if(embarques.length){
       docPdf.setFont('helvetica','bold');
-      docPdf.setFontSize(12);
-      docPdf.setTextColor(26,53,48);
+      docPdf.setFontSize(11.5);
+      docPdf.setTextColor(...VERDE_ESCURO);
       docPdf.text(`Embarques (${embarques.length})`, marginX, y);
-      y += 16;
-      docPdf.setFont('helvetica','normal');
-      docPdf.setFontSize(10.5);
-      embarques.forEach(e=>{
-        if(y > 780){ docPdf.addPage(); y = 50; }
-        docPdf.text(`${e.data}  ·  Carimbo ${e.carimbo}  ·  ${e.destino}  ·  ${e.qtd} cab.`, marginX, y);
-        y += 15;
+      y += 8;
+      docPdf.autoTable({
+        startY: y,
+        margin: { left: marginX, right: marginX },
+        head: [['Data','Carimbo','Destino','Animais']],
+        body: embarques.map(e=>[e.data, e.carimbo, e.destino, String(e.qtd)]),
+        theme: 'striped',
+        styles: { font:'helvetica', fontSize:9, cellPadding:6, textColor:VERDE_ESCURO, lineColor:LINHA },
+        headStyles: { fillColor:VERDE_ESCURO, textColor:255, fontStyle:'bold', fontSize:8.5 },
+        alternateRowStyles: { fillColor:CREME },
+        columnStyles: { 3: { halign:'right' } },
       });
-      y += 12;
+      y = docPdf.lastAutoTable.finalY + 26;
     }
 
+    // ---------- Detalhamento ----------
     docPdf.setFont('helvetica','bold');
-    docPdf.setFontSize(12);
+    docPdf.setFontSize(11.5);
+    docPdf.setTextColor(...VERDE_ESCURO);
     docPdf.text('Detalhamento', marginX, y);
     y += 8;
-    const colX = isSemana
-      ? { data: marginX, origem: marginX+55, destino: marginX+135, tipo: marginX+215, detalhe: marginX+275, qtd: 555 }
-      : { origem: marginX, destino: marginX+90, tipo: marginX+180, detalhe: marginX+250, qtd: 555 };
-    y += 14;
-    docPdf.setFontSize(9.5);
-    docPdf.setTextColor(107,122,118);
-    if(isSemana) docPdf.text('Data', colX.data, y);
-    docPdf.text('Origem', colX.origem, y);
-    docPdf.text('Destino', colX.destino, y);
-    docPdf.text('Tipo', colX.tipo, y);
-    docPdf.text('Detalhe', colX.detalhe, y);
-    docPdf.text('Qtd', colX.qtd, y, {align:'right'});
-    y += 6;
-    docPdf.setDrawColor(228,225,216);
-    docPdf.line(marginX, y, 555, y);
-    y += 14;
 
-    docPdf.setFont('helvetica','normal');
-    docPdf.setTextColor(26,53,48);
-    list.forEach(r=>{
-      if(y > 780){ docPdf.addPage(); y = 50; }
+    const head = isSemana ? ['Data','Origem','Destino','Tipo','Detalhe','Obs','Qtd'] : ['Origem','Destino','Tipo','Detalhe','Obs','Qtd'];
+    const body = list.map(r=>{
       const t = typeMap[r.tipo] || TYPES[0];
       const detalhe = r.tipo === 'entrada'
         ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
         : r.tipo === 'saida'
         ? [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Esc. '+r.escala : '', r.embarque ? 'Emb. '+r.embarque : '', r.refugoDente ? 'Ref.dente '+r.refugoDente : '', r.refugoPeso ? 'Ref.peso '+r.refugoPeso : ''].filter(Boolean).join(' · ')
         : (r.carimbo ? 'Carimbo '+r.carimbo : '');
-      if(isSemana) docPdf.text(r.data.slice(5).split('-').reverse().join('/'), colX.data, y);
-      docPdf.text(String(r.curralOrigem||'—'), colX.origem, y);
-      docPdf.text(String(r.curralDestino||'—'), colX.destino, y);
-      docPdf.text(t.short, colX.tipo, y);
-      docPdf.text(String(detalhe||'—').slice(0,isSemana?32:40), colX.detalhe, y);
-      docPdf.text(String(r.qtd), colX.qtd, y, {align:'right'});
-      y += 15;
-      if(r.obs){
-        docPdf.setTextColor(107,122,118);
-        docPdf.setFontSize(8.5);
-        docPdf.text('Obs: ' + r.obs, colX.origem, y);
-        docPdf.setFontSize(9.5);
-        docPdf.setTextColor(26,53,48);
-        y += 13;
-      }
+      const row = [
+        String(r.curralOrigem||'—'),
+        String(r.curralDestino||'—'),
+        t.short,
+        detalhe || '—',
+        r.obs || '—',
+        String(r.qtd),
+      ];
+      if(isSemana) row.unshift(r.data.slice(5).split('-').reverse().join('/'));
+      return row;
     });
+    const qtdColIndex = head.length - 1;
+    docPdf.autoTable({
+      startY: y,
+      margin: { left: marginX, right: marginX, bottom: 40 },
+      head: [head],
+      body,
+      theme: 'striped',
+      styles: { font:'helvetica', fontSize:8.5, cellPadding:5.5, textColor:VERDE_ESCURO, lineColor:LINHA, overflow:'linebreak' },
+      headStyles: { fillColor:VERDE_ESCURO, textColor:255, fontStyle:'bold', fontSize:8 },
+      alternateRowStyles: { fillColor:CREME },
+      columnStyles: { [qtdColIndex]: { halign:'right', fontStyle:'bold' } },
+    });
+
+    // ---------- Rodapé (todas as páginas) ----------
+    const totalPages = docPdf.internal.getNumberOfPages();
+    for(let i=1; i<=totalPages; i++){
+      docPdf.setPage(i);
+      const pageH = docPdf.internal.pageSize.getHeight();
+      docPdf.setDrawColor(...LINHA);
+      docPdf.line(marginX, pageH-28, pageW-marginX, pageH-28);
+      docPdf.setFont('helvetica','normal');
+      docPdf.setFontSize(8);
+      docPdf.setTextColor(...MUTED);
+      docPdf.text('O.L · Powered by AG', marginX, pageH-16);
+      docPdf.text(`Página ${i} de ${totalPages}`, pageW-marginX, pageH-16, {align:'right'});
+    }
 
     return docPdf;
   }
@@ -1194,8 +1260,13 @@ if(isConfigured){
   });
 
   document.getElementById('btnPdf').addEventListener('click', ()=>{
-    switchView('relatorio');
-    setTimeout(()=>window.print(), 50);
+    const list = reportList();
+    if(list.length===0){
+      showToast('Sem registros neste período');
+      return;
+    }
+    const docPdf = buildPdfDoc();
+    docPdf.save(`relatorio-processamento-${reportFileTag()}.pdf`);
   });
 
   document.getElementById('btnWhats').addEventListener('click', async ()=>{
