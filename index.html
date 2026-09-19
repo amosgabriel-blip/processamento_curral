@@ -571,6 +571,11 @@
 
   <div class="toast" id="toast"></div>
 
+  <div id="updateBanner" style="display:none; position:absolute; top:0; left:0; right:0; z-index:70; background:var(--laranja); color:#fff; padding:10px 16px; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+    <span>Nova versão do app disponível</span>
+    <button id="btnAtualizarApp" style="background:#fff; color:var(--laranja); border:none; font-weight:700; font-size:12px; padding:6px 12px; border-radius:20px; cursor:pointer;">Atualizar agora</button>
+  </div>
+
   <div id="loginOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:60; padding:40px 24px; overflow-y:auto;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:28px;">
       <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:var(--verde-escuro); transform:rotate(-6deg);">O.L</div>
@@ -1583,8 +1588,39 @@ if(isConfigured){
 })();
 
 if('serviceWorker' in navigator){
+  const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+  let ignoredInitialClaim = hadControllerAtLoad;
+
+  function showUpdateBanner(){
+    document.getElementById('updateBanner').style.display = 'flex';
+  }
+  document.getElementById('btnAtualizarApp').addEventListener('click', ()=>{
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(!ignoredInitialClaim){ ignoredInitialClaim = true; return; }
+    showUpdateBanner();
+  });
+
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // Verifica se já existe uma atualização instalada aguardando (ex: app ficou aberto em segundo plano)
+      if(reg.waiting && hadControllerAtLoad) showUpdateBanner();
+      reg.addEventListener('updatefound', ()=>{
+        const novo = reg.installing;
+        if(!novo) return;
+        novo.addEventListener('statechange', ()=>{
+          if(novo.state === 'installed' && hadControllerAtLoad) showUpdateBanner();
+        });
+      });
+      // Reconfere no servidor de tempos em tempos, já que um PWA aberto pode
+      // ficar dias sem navegação nenhuma (o que normalmente dispara a checagem).
+      setInterval(()=> reg.update().catch(()=>{}), 60*60*1000);
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible') reg.update().catch(()=>{});
+      });
+    }).catch(()=>{});
   });
 }
 </script>
