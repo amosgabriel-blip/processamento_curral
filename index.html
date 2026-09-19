@@ -280,6 +280,22 @@
   .hist-sub{font-size:11.5px; color:var(--texto-muted); margin-top:2px;}
   .hist-num{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:var(--verde-lage);}
 
+  .curral-card{
+    background:var(--papel); border:1.5px solid var(--linha); border-radius:12px;
+    padding:13px 14px; margin-bottom:10px; display:flex; align-items:center; gap:12px;
+  }
+  .curral-badge{
+    flex-shrink:0; width:46px; height:46px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px;
+    color:#fff; background:var(--verde-lage); text-align:center; line-height:1.1; padding:2px;
+  }
+  .curral-body{flex:1; min-width:0;}
+  .curral-name{font-weight:700; font-size:14px; color:var(--verde-escuro);}
+  .curral-sub{font-size:11.5px; color:var(--texto-muted); margin-top:2px;}
+  .curral-num{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:var(--verde-lage); flex-shrink:0;}
+  .curral-num.negativo{color:var(--risco);}
+
   /* ---------- NAV ---------- */
   nav{
     position:absolute; bottom:0; left:0; right:0;
@@ -413,7 +429,7 @@
           </div>
           <div class="field">
             <label>Embarque</label>
-            <input type="text" id="fEmbarque" placeholder="Nº do embarque">
+            <input type="number" id="fEmbarque" min="0" inputmode="numeric" placeholder="Nº do embarque">
           </div>
           <div class="row-2">
             <div class="field">
@@ -510,6 +526,21 @@
       <div id="histList"></div>
     </section>
 
+    <!-- CURRAIS (gestão à vista) -->
+    <section class="view" id="view-currais">
+      <div class="section-title">Gestão à vista &middot; saldo por curral</div>
+      <div class="kpi-row" style="grid-template-columns:1fr;">
+        <div class="kpi-card">
+          <div class="kpi-num" id="curraisTotalGeral">0</div>
+          <div class="kpi-label">Total de animais no confinamento (saldo geral)</div>
+        </div>
+      </div>
+      <div id="curraisList" style="margin-top:14px;"></div>
+      <div style="font-size:11px; color:var(--texto-muted); margin-top:14px; line-height:1.5;">
+        O saldo soma todas as Entradas e Saídas já lançadas (histórico completo). Registros de Embarque não descontam de nenhum curral, pois não têm um curral de origem no formulário atual.
+      </div>
+    </section>
+
   </main>
 
   <nav>
@@ -529,6 +560,10 @@
     <button class="nav-btn" data-view="historico">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       <span>Histórico</span>
+    </button>
+    <button class="nav-btn" data-view="currais">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+      <span>Currais</span>
     </button>
     </div>
     <div class="app-footer">Powered by AG</div>
@@ -1215,11 +1250,62 @@ if(isConfigured){
     return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // ---------- CURRAIS (gestão à vista) ----------
+  // Saldo por curral: soma Entradas (chegam no destino) e Saídas (saem da origem, chegam no destino)
+  // de todo o histórico. Embarque não tem curral de origem no formulário, então não desconta de nada.
+  function curralBalances(){
+    const balances = {};
+    const ensure = (nome)=>{
+      if(!balances[nome]) balances[nome] = { nome, saldo:0, ultimoCarimbo:'', ultimoTs:0 };
+      return balances[nome];
+    };
+    [...data].sort((a,b)=>a.criadoEm-b.criadoEm).forEach(r=>{
+      const qtd = Number(r.qtd)||0;
+      if(r.tipo === 'entrada'){
+        if(r.curralDestino) ensure(r.curralDestino).saldo += qtd;
+      }else if(r.tipo === 'saida'){
+        if(r.curralOrigem) ensure(r.curralOrigem).saldo -= qtd;
+        if(r.curralDestino) ensure(r.curralDestino).saldo += qtd;
+        if(r.carimbo){
+          [r.curralOrigem, r.curralDestino].filter(Boolean).forEach(nome=>{
+            const b = ensure(nome);
+            if(r.criadoEm >= b.ultimoTs){ b.ultimoCarimbo = r.carimbo; b.ultimoTs = r.criadoEm; }
+          });
+        }
+      }
+    });
+    return Object.values(balances)
+      .filter(b=> b.nome && b.nome !== '.' && b.saldo !== 0)
+      .sort((a,b)=> b.saldo - a.saldo);
+  }
+  function renderCurrais(){
+    const list = curralBalances();
+    const totalGeral = list.reduce((s,b)=> s + (b.saldo>0 ? b.saldo : 0), 0);
+    document.getElementById('curraisTotalGeral').textContent = totalGeral;
+    const el = document.getElementById('curraisList');
+    if(list.length===0){
+      el.innerHTML = `<div class="empty-state"><div class="glyph">&#127959;&#65039;</div><p>Nenhum saldo ainda. Lance Entradas e Saídas para ver a ocupação dos currais.</p></div>`;
+      return;
+    }
+    el.innerHTML = list.map(b=>{
+      const negativo = b.saldo < 0;
+      return `<div class="curral-card">
+        <div class="curral-badge" style="${negativo?'background:var(--risco);':''}">${escapeHtml(String(b.nome)).slice(0,6)}</div>
+        <div class="curral-body">
+          <div class="curral-name">${escapeHtml(b.nome)}</div>
+          <div class="curral-sub">${b.ultimoCarimbo ? 'Último carimbo: '+escapeHtml(b.ultimoCarimbo) : 'Sem carimbo registrado'}</div>
+        </div>
+        <div class="curral-num${negativo?' negativo':''}">${b.saldo}</div>
+      </div>`;
+    }).join('');
+  }
+
   function renderAll(){
     renderHeader();
     renderHoje();
     renderRelatorio();
     renderHistorico();
+    renderCurrais();
   }
 
   // ---------- NAV ----------
