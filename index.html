@@ -744,7 +744,9 @@ if(isConfigured){
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 1800);
+    const duracao = msg.length > 40 ? 3600 : 1800;
+    clearTimeout(showToast._tid);
+    showToast._tid = setTimeout(()=>t.classList.remove('show'), duracao);
   }
 
   // ---------- AUTH ----------
@@ -1294,36 +1296,47 @@ if(isConfigured){
   function escalaGroups(){
     const groups = {};
     data.filter(r=>r.tipo==='saida' && r.escala).forEach(r=>{
-      const key = r.escala.trim() + '|' + (r.data||'');
+      const key = r.escala.trim();
       if(!groups[key]){
-        groups[key] = { escala:r.escala.trim(), data:r.data||'', qtd:0, currais:{}, embarques:new Set(), carimbos:new Set() };
+        groups[key] = { escala:r.escala.trim(), dataMin:r.data||'', dataMax:r.data||'', qtd:0, currais:{}, embarques:new Set(), carimbos:new Set() };
       }
       const g = groups[key];
       const qtd = Number(r.qtd)||0;
       g.qtd += qtd;
       const curral = r.curralOrigem || '—';
       g.currais[curral] = (g.currais[curral]||0) + qtd;
+      if(r.data){
+        if(!g.dataMin || r.data < g.dataMin) g.dataMin = r.data;
+        if(!g.dataMax || r.data > g.dataMax) g.dataMax = r.data;
+      }
       if(r.embarque) g.embarques.add(r.embarque);
       if(r.carimbo) g.carimbos.add(r.carimbo);
     });
     return Object.values(groups)
       .map(g=>({
         escala: g.escala,
-        data: g.data,
+        dataMin: g.dataMin,
+        dataMax: g.dataMax,
         qtd: g.qtd,
         currais: Object.entries(g.currais).sort((a,b)=>b[1]-a[1]),
         embarque: [...g.embarques].join(', ') || '—',
         carimbo: [...g.carimbos].join(', ') || '—',
       }))
-      .sort((a,b)=> b.data.localeCompare(a.data));
+      .sort((a,b)=> b.dataMax.localeCompare(a.dataMax));
+  }
+  function fmtDateRange(min, max){
+    if(!min) return '—';
+    if(min === max) return fmtDateLabel(min);
+    const fmt = (iso)=>{ const [,m,d]=iso.split('-'); return `${d}/${m}`; };
+    return `${fmt(min)} – ${fmt(max)}`;
   }
   function renderCurrais(){
     let list = escalaGroups();
     const de = document.getElementById('fEscFiltroDe').value;
     const ate = document.getElementById('fEscFiltroAte').value;
     const texto = document.getElementById('fEscFiltroTexto').value.trim().toLowerCase();
-    if(de) list = list.filter(g=> g.data >= de);
-    if(ate) list = list.filter(g=> g.data <= ate);
+    if(de) list = list.filter(g=> g.dataMax >= de);
+    if(ate) list = list.filter(g=> g.dataMin <= ate);
     if(texto) list = list.filter(g=> g.escala.toLowerCase().includes(texto));
 
     document.getElementById('curraisTotalGeral').textContent = list.length;
@@ -1344,7 +1357,7 @@ if(isConfigured){
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div>
             <div class="curral-name">Escala ${escapeHtml(g.escala)}</div>
-            <div class="curral-sub">${fmtDateLabel(g.data)} &middot; Embarque ${escapeHtml(g.embarque)}</div>
+            <div class="curral-sub">${fmtDateRange(g.dataMin, g.dataMax)} &middot; Embarque ${escapeHtml(g.embarque)}</div>
           </div>
           <div class="curral-num">${g.qtd}<div class="curral-sub" style="text-align:right;">animais</div></div>
         </div>
@@ -1432,7 +1445,10 @@ if(isConfigured){
       showToast(`${registros.length} escala(s) programada(s) importada(s)`);
     }catch(err){
       console.error(err);
-      showToast('Erro ao importar. Confira o formato da planilha.');
+      const msg = err && err.code === 'permission-denied'
+        ? 'Sem permissão no Firestore — confirme se colou a regra da coleção escalas_programadas'
+        : 'Erro ao importar: ' + (err && err.message ? err.message : 'formato inválido');
+      showToast(msg);
     }
   });
 
@@ -1650,7 +1666,10 @@ if(isConfigured){
       showToast(`${records.length} registro(s) importado(s)${skipped ? ' · '+skipped+' linha(s) ignorada(s)' : ''}`);
     }catch(err){
       console.error(err);
-      showToast('Erro ao importar. Confira o formato da planilha.');
+      const msg = err && err.code === 'permission-denied'
+        ? 'Sem permissão no Firestore — confirme as regras de segurança'
+        : 'Erro ao importar: ' + (err && err.message ? err.message : 'formato inválido');
+      showToast(msg);
     }
   });
 
