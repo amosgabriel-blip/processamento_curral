@@ -1432,8 +1432,22 @@ if(isConfigured){
         showToast('Nenhuma linha válida encontrada na planilha');
         return;
       }
+      const existentes = escalasProgramadas.length;
+      if(existentes > 0){
+        const ok = window.confirm(`Isso vai apagar as ${existentes} escala(s) programada(s) já importada(s) e substituir pelas ${registros.length} desta planilha. Continuar?`);
+        if(!ok) return;
+      }
       showToast(`Importando ${registros.length} escala(s)...`);
+      // Apaga tudo que já existia antes de gravar a nova planilha, pra ficar só com a última importação.
+      const idsAntigos = escalasProgramadas.map(x=>x.id);
       const chunkSize = 450;
+      for(let i=0; i<idsAntigos.length; i+=chunkSize){
+        const batch = writeBatch(db);
+        idsAntigos.slice(i, i+chunkSize).forEach(id=>{
+          batch.delete(doc(db, ESCALAS_COLLECTION, id));
+        });
+        await batch.commit();
+      }
       for(let i=0; i<registros.length; i+=chunkSize){
         const batch = writeBatch(db);
         registros.slice(i, i+chunkSize).forEach(rec=>{
