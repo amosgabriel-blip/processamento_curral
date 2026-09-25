@@ -537,9 +537,13 @@
       <div id="histList"></div>
     </section>
 
-    <!-- ESCALAS (gestão à vista) -->
+    <!-- ESCALAS / LOTES (gestão à vista) -->
     <section class="view" id="view-currais">
-      <div class="section-title">Gestão à vista &middot; por escala</div>
+      <div class="section-title" id="curraisTitle">Gestão à vista &middot; por escala</div>
+      <div class="type-grid" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">
+        <div class="type-opt active" id="modoGordo" data-modo="gordo">Boi Gordo &middot; Escalas</div>
+        <div class="type-opt" id="modoMagro" data-modo="magro">Boi Magro &middot; Lotes</div>
+      </div>
       <div class="row-2">
         <div class="field">
           <label>Período de</label>
@@ -551,28 +555,30 @@
         </div>
       </div>
       <div class="field">
-        <label>Buscar por escala</label>
+        <label id="labelEscFiltroTexto">Buscar por escala</label>
         <input type="text" id="fEscFiltroTexto" placeholder="Ex: JBS 266">
       </div>
       <button class="btn-secondary" id="btnEscFiltroLimpar" style="margin-bottom:14px;">Limpar filtros</button>
       <div class="kpi-row" style="grid-template-columns:1fr 1fr;">
         <div class="kpi-card">
           <div class="kpi-num" id="curraisTotalGeral">0</div>
-          <div class="kpi-label">Escalas encontradas</div>
+          <div class="kpi-label" id="labelTotalGeral">Escalas encontradas</div>
         </div>
         <div class="kpi-card alt">
           <div class="kpi-num" id="curraisTotalAnimais">0</div>
-          <div class="kpi-label">Animais nas escalas</div>
+          <div class="kpi-label" id="labelTotalAnimais">Animais nas escalas</div>
         </div>
       </div>
       <div id="curraisList" style="margin-top:14px;"></div>
 
-      <div class="section-title" style="margin-top:22px;">Escala de abate programada <span class="count-chip" id="escProgCount">0</span></div>
-      <div class="curral-sub" style="margin-bottom:10px;">
-        Sobe a planilha oficial da safra (colunas: Mês, Data, Dia Embarque, Data Abate, Categoria, QTDE, Mercado, Destino) para alimentar as sugestões do campo Escala no lançamento.
+      <div id="blocoEscalaAbate">
+        <div class="section-title" style="margin-top:22px;">Escala de abate programada <span class="count-chip" id="escProgCount">0</span></div>
+        <div class="curral-sub" style="margin-bottom:10px;">
+          Sobe a planilha oficial da safra (colunas: Mês, Data, Dia Embarque, Data Abate, Categoria, QTDE, Mercado, Destino) para alimentar as sugestões do campo Escala no lançamento.
+        </div>
+        <button class="btn-secondary" id="btnImportarEscala" style="display:none;">Importar planilha de escala de abate (substitui as atuais &mdash; admin)</button>
+        <input type="file" id="fileImportarEscala" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
-      <button class="btn-secondary" id="btnImportarEscala" style="display:none;">Importar planilha de escala de abate (substitui as atuais &mdash; admin)</button>
-      <input type="file" id="fileImportarEscala" accept=".xlsx,.xls,.csv" style="display:none;">
     </section>
 
   </main>
@@ -1386,6 +1392,8 @@ if(isConfigured){
   // ---------- ESCALAS (gestão à vista) ----------
   // Agrupa os registros de Saída por Escala (+ data, pra não misturar escalas com nomes repetidos
   // em datas diferentes), somando quantidade por curral de origem e listando os embarques envolvidos.
+  let curraisMode = 'gordo'; // 'gordo' (Escalas/Saída) | 'magro' (Lotes/Entrada)
+
   function escalaGroups(){
     const groups = {};
     data.filter(r=>r.tipo==='saida' && r.escala).forEach(r=>{
@@ -1412,7 +1420,7 @@ if(isConfigured){
       .map(g=>{
         const programada = escalasProgramadas.find(e=> escalaLabelValor(e) === g.escala);
         return {
-          escala: g.escala,
+          chave: g.escala,
           dataMin: g.dataMin,
           dataMax: g.dataMax,
           qtd: g.qtd,
@@ -1424,6 +1432,37 @@ if(isConfigured){
       })
       .sort((a,b)=> b.dataMax.localeCompare(a.dataMax));
   }
+  // Lotes de Boi Magro: agrupa Entradas por Fornecedor + Data (um recebimento pode
+  // distribuir animais em vários currais destino no mesmo dia).
+  function loteGroups(){
+    const groups = {};
+    data.filter(r=>r.tipo==='entrada').forEach(r=>{
+      const fornecedor = (r.fornecedor||'').trim() || 'Sem fornecedor';
+      const key = fornecedor + '|' + (r.data||'');
+      if(!groups[key]){
+        groups[key] = { fornecedor, data:r.data||'', qtd:0, currais:{}, racas:new Set() };
+      }
+      const g = groups[key];
+      const qtd = Number(r.qtd)||0;
+      g.qtd += qtd;
+      const origem = r.curralOrigem || '—';
+      const destino = r.curralDestino || '—';
+      const curralKey = origem + '→' + destino;
+      if(!g.currais[curralKey]) g.currais[curralKey] = { origem, destino, qtd:0 };
+      g.currais[curralKey].qtd += qtd;
+      if(r.raca) g.racas.add(r.raca);
+    });
+    return Object.values(groups)
+      .map(g=>({
+        chave: g.fornecedor,
+        dataMin: g.data,
+        dataMax: g.data,
+        qtd: g.qtd,
+        currais: Object.values(g.currais).sort((a,b)=>b.qtd-a.qtd),
+        raca: [...g.racas].join(', ') || '—',
+      }))
+      .sort((a,b)=> b.dataMax.localeCompare(a.dataMax));
+  }
   function fmtDateRange(min, max){
     if(!min) return '—';
     if(min === max) return fmtDateLabel(min);
@@ -1431,19 +1470,22 @@ if(isConfigured){
     return `${fmt(min)} – ${fmt(max)}`;
   }
   function renderCurrais(){
-    let list = escalaGroups();
+    const isGordo = curraisMode === 'gordo';
+    let list = isGordo ? escalaGroups() : loteGroups();
     const de = document.getElementById('fEscFiltroDe').value;
     const ate = document.getElementById('fEscFiltroAte').value;
     const texto = document.getElementById('fEscFiltroTexto').value.trim().toLowerCase();
     if(de) list = list.filter(g=> g.dataMax >= de);
     if(ate) list = list.filter(g=> g.dataMin <= ate);
-    if(texto) list = list.filter(g=> g.escala.toLowerCase().includes(texto));
+    if(texto) list = list.filter(g=> g.chave.toLowerCase().includes(texto));
 
     document.getElementById('curraisTotalGeral').textContent = list.length;
     document.getElementById('curraisTotalAnimais').textContent = list.reduce((s,g)=>s+g.qtd,0);
     const el = document.getElementById('curraisList');
     if(list.length===0){
-      el.innerHTML = `<div class="empty-state"><div class="glyph">&#127959;&#65039;</div><p>Nenhuma escala encontrada. Ajuste os filtros ou preencha o campo Escala nos lançamentos de Saída.</p></div>`;
+      el.innerHTML = isGordo
+        ? `<div class="empty-state"><div class="glyph">&#127959;&#65039;</div><p>Nenhuma escala encontrada. Ajuste os filtros ou preencha o campo Escala nos lançamentos de Saída.</p></div>`
+        : `<div class="empty-state"><div class="glyph">&#127959;&#65039;</div><p>Nenhum lote encontrado. Ajuste os filtros ou lance Entradas com o Fornecedor preenchido.</p></div>`;
       return;
     }
     el.innerHTML = list.map(g=>{
@@ -1453,21 +1495,34 @@ if(isConfigured){
           <div class="breakdown-num">${c.qtd}</div>
         </div>`
       ).join('');
-      const p = g.programada;
-      const infoProgramada = p
-        ? `<div class="curral-sub">Embarque programado: ${escapeHtml(fmtDateLabel(p.dataEmbarque))} &middot; ${escapeHtml(p.destino)} &middot; ${p.qtde} cab. planejados${p.mercado ? ' &middot; '+escapeHtml(p.mercado) : ''}</div>`
-        : '';
+      if(isGordo){
+        const p = g.programada;
+        const infoProgramada = p
+          ? `<div class="curral-sub">Embarque programado: ${escapeHtml(fmtDateLabel(p.dataEmbarque))} &middot; ${escapeHtml(p.destino)} &middot; ${p.qtde} cab. planejados${p.mercado ? ' &middot; '+escapeHtml(p.mercado) : ''}</div>`
+          : '';
+        return `<div class="curral-card" style="flex-direction:column; align-items:stretch; gap:10px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+              <div class="curral-name">Escala ${escapeHtml(g.chave)}</div>
+              <div class="curral-sub">Lido em: ${fmtDateRange(g.dataMin, g.dataMax)} &middot; Embarque ${escapeHtml(g.embarque)}</div>
+              ${infoProgramada}
+            </div>
+            <div class="curral-num">${g.qtd}<div class="curral-sub" style="text-align:right;">animais lidos</div></div>
+          </div>
+          <div class="table-wrap" style="padding:6px 12px;">${curraisRows}</div>
+          <div class="curral-sub">${g.currais.length} curral${g.currais.length>1?'is':''} lido${g.currais.length>1?'s':''} &middot; Carimbo ${escapeHtml(g.carimbo)}</div>
+        </div>`;
+      }
       return `<div class="curral-card" style="flex-direction:column; align-items:stretch; gap:10px;">
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div>
-            <div class="curral-name">Escala ${escapeHtml(g.escala)}</div>
-            <div class="curral-sub">Lido em: ${fmtDateRange(g.dataMin, g.dataMax)} &middot; Embarque ${escapeHtml(g.embarque)}</div>
-            ${infoProgramada}
+            <div class="curral-name">Lote ${escapeHtml(g.chave)}</div>
+            <div class="curral-sub">${fmtDateLabel(g.dataMax)} &middot; Raça: ${escapeHtml(g.raca)}</div>
           </div>
           <div class="curral-num">${g.qtd}<div class="curral-sub" style="text-align:right;">animais lidos</div></div>
         </div>
         <div class="table-wrap" style="padding:6px 12px;">${curraisRows}</div>
-        <div class="curral-sub">${g.currais.length} curral${g.currais.length>1?'is':''} lido${g.currais.length>1?'s':''} &middot; Carimbo ${escapeHtml(g.carimbo)}</div>
+        <div class="curral-sub">${g.currais.length} curral${g.currais.length>1?'is':''} recebido${g.currais.length>1?'s':''}</div>
       </div>`;
     }).join('');
   }
@@ -1480,6 +1535,20 @@ if(isConfigured){
     document.getElementById('fEscFiltroTexto').value = '';
     renderCurrais();
   });
+  function setCurraisMode(modo){
+    curraisMode = modo;
+    document.getElementById('modoGordo').classList.toggle('active', modo==='gordo');
+    document.getElementById('modoMagro').classList.toggle('active', modo==='magro');
+    document.getElementById('curraisTitle').textContent = modo==='gordo' ? 'Gestão à vista · por escala' : 'Gestão à vista · por lote';
+    document.getElementById('labelEscFiltroTexto').textContent = modo==='gordo' ? 'Buscar por escala' : 'Buscar por fornecedor';
+    document.getElementById('fEscFiltroTexto').placeholder = modo==='gordo' ? 'Ex: JBS 266' : 'Ex: Agropecuária Monark';
+    document.getElementById('labelTotalGeral').textContent = modo==='gordo' ? 'Escalas encontradas' : 'Lotes encontrados';
+    document.getElementById('labelTotalAnimais').textContent = modo==='gordo' ? 'Animais nas escalas' : 'Animais nos lotes';
+    document.getElementById('blocoEscalaAbate').style.display = modo==='gordo' ? 'block' : 'none';
+    renderCurrais();
+  }
+  document.getElementById('modoGordo').addEventListener('click', ()=>setCurraisMode('gordo'));
+  document.getElementById('modoMagro').addEventListener('click', ()=>setCurraisMode('magro'));
 
   // ---------- ESCALA DE ABATE PROGRAMADA (sugestões no lançamento) ----------
   function escalaLabelValor(e){
