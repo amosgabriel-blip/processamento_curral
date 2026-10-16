@@ -305,6 +305,20 @@
     background:none; border:none; color:#F5B199; font-size:12px; font-weight:600; cursor:pointer;
   }
 
+
+  /* ---------- PATIO ---------- */
+  .chip-btn{border:1.5px solid var(--linha); background:var(--papel); color:var(--texto-muted); border-radius:20px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer;}
+  .chip-btn.done{background:var(--verde-lage); border-color:var(--verde-lage); color:#fff;}
+  .chip-btn.active{border-color:var(--verde-lage); background:rgba(38,138,117,0.08); color:var(--verde-lage);}
+  .patio-chip{display:inline-block; background:rgba(38,138,117,0.10); color:var(--verde-lage); border-radius:6px; padding:2px 7px; font-size:12px; font-weight:700; margin:2px 3px 2px 0;}
+  .patio-actions{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .patio-arrow{color:var(--laranja); font-weight:700; margin:0 4px;}
+  .patio-liberado{opacity:.55;}
+  .patio-status{font-size:11px; font-weight:700; border-radius:6px; padding:2px 7px;}
+  .patio-status.aberto{background:rgba(249,115,22,0.14); color:var(--laranja);}
+  .patio-status.ok{background:rgba(38,138,117,0.14); color:var(--verde-lage);}
+  .patio-unit-row{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
+
   /* ---------- NAV ---------- */
   nav{
     position:absolute; bottom:0; left:0; right:0;
@@ -581,6 +595,97 @@
       </div>
     </section>
 
+    <!-- MANEJO -->
+    <section class="view" id="view-patio">
+      <div class="date-nav">
+        <button id="patioPrev">&#8249;</button>
+        <div class="date-label" id="patioDateLabel">hoje</div>
+        <button id="patioNext">&#8250;</button>
+      </div>
+      <div class="patio-unit-row" id="patioUnidadeGrid">
+        <button type="button" class="chip-btn active" data-unidade="todas">Todas</button>
+        <button type="button" class="chip-btn" data-unidade="confinamento">Confinamento</button>
+        <button type="button" class="chip-btn" data-unidade="vera_cruz">Faz. Vera Cruz</button>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-num" id="patioKpiFechados">0</div><div class="kpi-label">Currais/piquetes fechados</div></div>
+        <div class="kpi-card alt"><div class="kpi-num" id="patioKpiMov">0</div><div class="kpi-label">Movimentações planejadas</div></div>
+      </div>
+      <button class="btn-primary" id="btnPatioNovo" type="button" style="margin-bottom:14px;">+ Fechar curral / planejar movimentação</button>
+
+      <form id="formPatio" style="display:none; margin-bottom:16px;">
+        <div class="type-grid">
+          <div class="type-opt active" id="patioTipoFechar">Fechar curral</div>
+          <div class="type-opt" id="patioTipoMov">Movimentar</div>
+        </div>
+        <div class="row-2">
+          <div class="field">
+            <label>Unidade</label>
+            <select id="fPatioUnidade">
+              <option value="confinamento">Confinamento</option>
+              <option value="vera_cruz">Fazenda Vera Cruz</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Data</label>
+            <input type="date" id="fPatioData">
+          </div>
+        </div>
+        <div id="patioCamposFechamento">
+          <div class="field">
+            <label>Currais / piquetes (separe por vírgula ou "e")</label>
+            <input type="text" id="fPatioCurrais" placeholder="Ex.: Espera 1, Espera 2 e Espera 3">
+          </div>
+          <div class="field">
+            <label>Finalidade</label>
+            <select id="fPatioFinalidade">
+              <option value="dente">Olhar dente</option>
+              <option value="embarque">Embarque</option>
+              <option value="processo">Processo</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="field" id="patioEscalaWrap" style="display:none;">
+            <label>Escala (opcional)</label>
+            <input type="text" id="fPatioEscala" list="escalaSugestoesList" placeholder="Ex.: JBS 266">
+          </div>
+        </div>
+        <div id="patioCamposMov" style="display:none;">
+          <div class="row-2">
+            <div class="field">
+              <label>De (origem)</label>
+              <input type="text" id="fPatioOrigem" placeholder="Ex.: Piquete 2 e Piquete 3">
+            </div>
+            <div class="field">
+              <label>Para (destino)</label>
+              <input type="text" id="fPatioDestino" placeholder="Ex.: A5 e A6">
+            </div>
+          </div>
+          <div class="field">
+            <label>Quando</label>
+            <select id="fPatioPeriodo">
+              <option value="manha">Manhã</option>
+              <option value="almoco">Após o almoço</option>
+              <option value="tarde">Tarde</option>
+              <option value="noite">Noite</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Observação</label>
+          <textarea id="fPatioObs" rows="2" placeholder="Opcional"></textarea>
+        </div>
+        <button class="btn-primary" id="btnPatioSalvar" type="submit">Salvar</button>
+        <button class="btn-secondary" id="btnPatioCancelar" type="button" style="margin-top:8px;">Cancelar</button>
+      </form>
+
+      <div class="section-title">Currais fechados</div>
+      <div id="patioFechados"></div>
+      <div class="section-title" style="margin-top:18px;">Movimentações</div>
+      <div id="patioMov"></div>
+      <button class="btn-secondary" id="btnPatioCompartilhar" type="button" style="margin-top:16px;">Compartilhar resumo no WhatsApp</button>
+    </section>
+
   </main>
 
   <nav>
@@ -604,6 +709,10 @@
     <button class="nav-btn" data-view="currais">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
       <span>Escalas</span>
+    </button>
+    <button class="nav-btn" data-view="patio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><path d="M8 2v16M16 6v16"/></svg>
+      <span>Manejo</span>
     </button>
     </div>
     <div class="app-footer">Powered by AG</div>
@@ -688,6 +797,7 @@ const firebaseConfig = {
 const FIRESTORE_COLLECTION = 'processamentos';
 const ESCALAS_COLLECTION = 'escalas_programadas';
 const ADMINS_COLLECTION = 'admins';
+const PATIO_COLLECTION = 'plano_patio';
 
 const isConfigured = firebaseConfig.apiKey !== "SUA_API_KEY_AQUI";
 let db = null;
@@ -799,6 +909,7 @@ if(isConfigured){
       }else{
         showLogin(true);
         data = [];
+        patio = [];
         isAdmin = false;
         currentUserEmail = '';
         renderAll();
@@ -820,6 +931,7 @@ if(isConfigured){
     document.getElementById('btnImportarEscala').style.display = isAdmin ? 'block' : 'none';
     renderHoje();
     renderCurrais();
+    renderPatio();
   }
   document.getElementById('btnAdminPainel').addEventListener('click', async ()=>{
     if(!isAdmin) return;
@@ -901,6 +1013,14 @@ if(isConfigured){
       renderEscalaSugestoes();
     }, (err)=>{
       console.error(err);
+    });
+    const qPat = query(collection(db, PATIO_COLLECTION), orderBy('criadoEm', 'desc'));
+    onSnapshot(qPat, (snapshot)=>{
+      patio = snapshot.docs.map(d=>({ id: d.id, ...d.data() }));
+      renderPatio();
+    }, (err)=>{
+      console.error(err);
+      if(err && err.code === 'permission-denied') showToast('Sem permissão na coleção plano_patio — cole a regra no Firestore');
     });
   }
   async function addRecord(record){
@@ -1550,6 +1670,246 @@ if(isConfigured){
   document.getElementById('modoGordo').addEventListener('click', ()=>setCurraisMode('gordo'));
   document.getElementById('modoMagro').addEventListener('click', ()=>setCurraisMode('magro'));
 
+  // ---------- PATIO (currais fechados e movimentações planejadas) ----------
+  const PATIO_UNIDADES = { confinamento:{nome:'Confinamento', cor:'#268A75'}, vera_cruz:{nome:'Fazenda Vera Cruz', cor:'#3E8FB0'} };
+  const PATIO_FINALIDADES = { dente:'Olhar dente', embarque:'Embarque', processo:'Processo', outro:'Outro' };
+  const PATIO_PERIODOS = { manha:'Manhã', almoco:'Após o almoço', tarde:'Tarde', noite:'Noite' };
+  let patio = [];
+  let patioDate = todayISO();
+  let patioUnidadeFiltro = 'todas';
+  let patioTipoForm = 'fechamento';
+  let editingPatioId = null;
+
+  function patioParseCurrais(txt){
+    const parts = String(txt||'').split(/\s*[,;]\s*|\s+e\s+/).map(x=>x.trim()).filter(Boolean);
+    const seen = new Set(); const out = [];
+    parts.forEach(x=>{ const k = x.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(x); } });
+    return out;
+  }
+  function patioDdmm(iso){ const p = String(iso||'').split('-'); return p.length===3 ? p[2]+'/'+p[1] : ''; }
+  function patioChips(arr){ return (arr||[]).map(c=>`<span class="patio-chip">${escapeHtml(c)}</span>`).join(''); }
+  function patioVisible(){
+    const hoje = todayISO();
+    return patio.filter(r=>{
+      if(patioUnidadeFiltro!=='todas' && r.unidade!==patioUnidadeFiltro) return false;
+      if(r.data===patioDate) return true;
+      if(patioDate===hoje && r.data<hoje){
+        return (r.tipo==='fechamento' && r.status==='fechado') || (r.tipo==='movimentacao' && r.status==='planejada');
+      }
+      return false;
+    });
+  }
+  function patioSort(list){
+    const aberto = r => (r.status==='fechado' || r.status==='planejada') ? 0 : 1;
+    return list.slice().sort((a,b)=> aberto(a)-aberto(b) || (a.criadoEm||0)-(b.criadoEm||0));
+  }
+  function patioCardHtml(r){
+    const un = PATIO_UNIDADES[r.unidade] || {nome:r.unidade||'', cor:'#268A75'};
+    const aberto = (r.status==='fechado' || r.status==='planejada');
+    const ehFech = r.tipo==='fechamento';
+    const tag = ehFech ? ((r.currais&&r.currais[0])||'—') : ((r.destino&&r.destino[0])||'→');
+    const desde = (r.data && r.data < patioDate) ? `<span class="patio-status aberto">desde ${patioDdmm(r.data)}</span> ` : '';
+    let corpo;
+    if(ehFech){
+      const fin = PATIO_FINALIDADES[r.finalidade] || '';
+      corpo = `<div class="entry-top"><div class="entry-type">${patioChips(r.currais)}</div></div>
+        <div class="entry-meta"><span>${escapeHtml(un.nome)} · ${escapeHtml(fin)}${r.escala?' · '+escapeHtml(r.escala):''}</span></div>`;
+    }else{
+      corpo = `<div class="entry-top"><div class="entry-type">${patioChips(r.origem)}<span class="patio-arrow">&#8594;</span>${patioChips(r.destino)}</div></div>
+        <div class="entry-meta"><span>${escapeHtml(un.nome)} · ${escapeHtml(PATIO_PERIODOS[r.periodo]||'')}</span></div>`;
+    }
+    const statusTxt = ehFech ? (aberto?'Fechado':'Liberado') : (aberto?'Planejada':'Realizada');
+    const btnTxt = ehFech ? (aberto?'Liberar':'Reabrir') : (aberto?'Marcar realizada':'Reabrir');
+    return `<div class="entry-card${aberto?'':' patio-liberado'}">
+      <div class="entry-tag" style="background:${un.cor}">${escapeHtml(String(tag).slice(0,4))}</div>
+      <div class="entry-body">
+        ${corpo}
+        <div class="entry-meta">${desde}<span class="patio-status ${aberto?'aberto':'ok'}">${statusTxt}</span></div>
+        ${r.obs?`<div class="entry-obs">${escapeHtml(r.obs)}</div>`:''}
+        <div class="patio-actions"><button type="button" class="chip-btn${aberto?'':' done'}" data-patio-toggle="${r.id}">${btnTxt}</button></div>
+      </div>
+      <div class="entry-actions">
+        <button class="entry-edit" data-patio-edit="${r.id}">&#9998;</button>
+        ${isAdmin?`<button class="entry-del" data-patio-del="${r.id}">&#10005;</button>`:''}
+      </div>
+    </div>`;
+  }
+  function renderPatio(){
+    const lbl = document.getElementById('patioDateLabel');
+    if(!lbl) return;
+    lbl.textContent = fmtDateLabel(patioDate);
+    document.querySelectorAll('#patioUnidadeGrid [data-unidade]').forEach(b=>b.classList.toggle('active', b.dataset.unidade===patioUnidadeFiltro));
+    const vis = patioVisible();
+    const fech = patioSort(vis.filter(r=>r.tipo==='fechamento'));
+    const mov = patioSort(vis.filter(r=>r.tipo==='movimentacao'));
+    document.getElementById('patioKpiFechados').textContent = fech.filter(r=>r.status==='fechado').reduce((n,r)=>n+(r.currais||[]).length,0);
+    document.getElementById('patioKpiMov').textContent = mov.filter(r=>r.status==='planejada').length;
+    document.getElementById('patioFechados').innerHTML = fech.length ? fech.map(patioCardHtml).join('') : `<div class="empty-state"><p>Nenhum curral fechado.</p></div>`;
+    document.getElementById('patioMov').innerHTML = mov.length ? mov.map(patioCardHtml).join('') : `<div class="empty-state"><p>Nenhuma movimentação planejada.</p></div>`;
+  }
+
+  async function togglePatioStatus(id){
+    const r = patio.find(x=>x.id===id); if(!r) return;
+    const aberto = (r.status==='fechado' || r.status==='planejada');
+    const novo = r.tipo==='fechamento' ? (aberto?'liberado':'fechado') : (aberto?'realizada':'planejada');
+    try{
+      await updateDoc(doc(db, PATIO_COLLECTION, id), { status:novo, atualizadoEm:Date.now(), atualizadoPor:currentUserEmail });
+    }catch(e){ console.error(e); showToast('Erro ao atualizar. Verifique a conexão.'); }
+  }
+  document.getElementById('view-patio').addEventListener('click', async (e)=>{
+    const t = e.target.closest('[data-patio-toggle],[data-patio-edit],[data-patio-del]');
+    if(!t) return;
+    if(t.dataset.patioToggle) return togglePatioStatus(t.dataset.patioToggle);
+    if(t.dataset.patioEdit) return openPatioForm(t.dataset.patioEdit);
+    if(t.dataset.patioDel){
+      if(!isAdmin) return;
+      if(!window.confirm('Excluir este item do manejo?')) return;
+      try{ await deleteDoc(doc(db, PATIO_COLLECTION, t.dataset.patioDel)); }
+      catch(err){ console.error(err); showToast('Erro ao excluir.'); }
+    }
+  });
+
+  function setPatioTipo(tipo){
+    patioTipoForm = tipo;
+    document.getElementById('patioTipoFechar').classList.toggle('active', tipo==='fechamento');
+    document.getElementById('patioTipoMov').classList.toggle('active', tipo==='movimentacao');
+    document.getElementById('patioCamposFechamento').style.display = tipo==='fechamento' ? 'block' : 'none';
+    document.getElementById('patioCamposMov').style.display = tipo==='movimentacao' ? 'block' : 'none';
+  }
+  function updatePatioEscalaVis(){
+    document.getElementById('patioEscalaWrap').style.display = document.getElementById('fPatioFinalidade').value==='embarque' ? 'block' : 'none';
+  }
+  function openPatioForm(id){
+    const f = document.getElementById('formPatio');
+    f.reset();
+    editingPatioId = id || null;
+    document.getElementById('fPatioData').value = patioDate;
+    document.getElementById('fPatioUnidade').value = patioUnidadeFiltro!=='todas' ? patioUnidadeFiltro : 'confinamento';
+    setPatioTipo('fechamento');
+    if(id){
+      const r = patio.find(x=>x.id===id);
+      if(r){
+        setPatioTipo(r.tipo);
+        document.getElementById('fPatioUnidade').value = r.unidade||'confinamento';
+        document.getElementById('fPatioData').value = r.data||patioDate;
+        document.getElementById('fPatioObs').value = r.obs||'';
+        if(r.tipo==='fechamento'){
+          document.getElementById('fPatioCurrais').value = (r.currais||[]).join(', ');
+          document.getElementById('fPatioFinalidade').value = r.finalidade||'outro';
+          document.getElementById('fPatioEscala').value = r.escala||'';
+        }else{
+          document.getElementById('fPatioOrigem').value = (r.origem||[]).join(', ');
+          document.getElementById('fPatioDestino').value = (r.destino||[]).join(', ');
+          document.getElementById('fPatioPeriodo').value = r.periodo||'manha';
+        }
+      }
+    }
+    updatePatioEscalaVis();
+    document.getElementById('patioTipoFechar').style.pointerEvents = id ? 'none' : '';
+    document.getElementById('patioTipoMov').style.pointerEvents = id ? 'none' : '';
+    f.style.display = 'block';
+    document.getElementById('btnPatioNovo').style.display = 'none';
+    f.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  function closePatioForm(){
+    editingPatioId = null;
+    document.getElementById('formPatio').style.display = 'none';
+    document.getElementById('btnPatioNovo').style.display = 'block';
+  }
+  document.getElementById('btnPatioNovo').addEventListener('click', ()=>openPatioForm(null));
+  document.getElementById('btnPatioCancelar').addEventListener('click', closePatioForm);
+  document.getElementById('patioTipoFechar').addEventListener('click', ()=>setPatioTipo('fechamento'));
+  document.getElementById('patioTipoMov').addEventListener('click', ()=>setPatioTipo('movimentacao'));
+  document.getElementById('fPatioFinalidade').addEventListener('change', updatePatioEscalaVis);
+
+  document.getElementById('formPatio').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const dataSel = document.getElementById('fPatioData').value;
+    if(!dataSel){ showToast('Informe a data'); return; }
+    const rec = {
+      tipo: patioTipoForm,
+      unidade: document.getElementById('fPatioUnidade').value,
+      data: dataSel,
+      obs: document.getElementById('fPatioObs').value.trim()
+    };
+    if(patioTipoForm==='fechamento'){
+      rec.currais = patioParseCurrais(document.getElementById('fPatioCurrais').value);
+      if(rec.currais.length===0){ showToast('Informe ao menos um curral/piquete'); return; }
+      rec.finalidade = document.getElementById('fPatioFinalidade').value;
+      rec.escala = rec.finalidade==='embarque' ? document.getElementById('fPatioEscala').value.trim() : '';
+    }else{
+      rec.origem = patioParseCurrais(document.getElementById('fPatioOrigem').value);
+      rec.destino = patioParseCurrais(document.getElementById('fPatioDestino').value);
+      if(rec.origem.length===0 || rec.destino.length===0){ showToast('Informe origem e destino'); return; }
+      rec.periodo = document.getElementById('fPatioPeriodo').value;
+    }
+    try{
+      if(editingPatioId){
+        rec.atualizadoEm = Date.now(); rec.atualizadoPor = currentUserEmail;
+        await updateDoc(doc(db, PATIO_COLLECTION, editingPatioId), rec);
+      }else{
+        rec.status = patioTipoForm==='fechamento' ? 'fechado' : 'planejada';
+        rec.criadoEm = Date.now(); rec.criadoPor = currentUserEmail;
+        await addDoc(collection(db, PATIO_COLLECTION), rec);
+      }
+      patioDate = rec.data;
+      closePatioForm();
+      renderPatio();
+      showToast('Salvo');
+    }catch(err){
+      console.error(err);
+      showToast(err && err.code==='permission-denied' ? 'Sem permissão — cole a regra plano_patio no Firestore' : 'Erro ao salvar. Verifique a conexão.');
+    }
+  });
+
+  document.querySelectorAll('#patioUnidadeGrid [data-unidade]').forEach(b=>{
+    b.addEventListener('click', ()=>{ patioUnidadeFiltro = b.dataset.unidade; renderPatio(); });
+  });
+  document.getElementById('patioPrev').addEventListener('click', ()=>{ patioDate = shiftDate(patioDate,-1); renderPatio(); });
+  document.getElementById('patioNext').addEventListener('click', ()=>{ patioDate = shiftDate(patioDate,1); renderPatio(); });
+
+  function patioBuildResumo(){
+    const vis = patioSort(patioVisible());
+    let txt = `*Manejo O.L — ${fmtDateLabel(patioDate)}*\n`;
+    let any = false;
+    Object.keys(PATIO_UNIDADES).forEach(k=>{
+      const itens = vis.filter(r=>r.unidade===k);
+      if(!itens.length) return;
+      any = true;
+      txt += `\n*${PATIO_UNIDADES[k].nome}*\n`;
+      const fech = itens.filter(r=>r.tipo==='fechamento');
+      const mov = itens.filter(r=>r.tipo==='movimentacao');
+      if(fech.length){
+        txt += `Currais fechados:\n`;
+        fech.forEach(r=>{
+          const ok = r.status!=='fechado';
+          txt += `• ${(r.currais||[]).join(', ')} — ${PATIO_FINALIDADES[r.finalidade]||''}${r.escala?' ('+r.escala+')':''}${ok?' ✅ liberado':''}${r.obs?' — '+r.obs:''}\n`;
+        });
+      }
+      if(mov.length){
+        txt += `Movimentações:\n`;
+        mov.forEach(r=>{
+          const ok = r.status!=='planejada';
+          txt += `• ${(r.origem||[]).join(', ')} → ${(r.destino||[]).join(', ')} — ${PATIO_PERIODOS[r.periodo]||''}${ok?' ✅ realizada':''}${r.obs?' — '+r.obs:''}\n`;
+        });
+      }
+    });
+    if(!any) txt += '\nNada registrado.';
+    return txt;
+  }
+  document.getElementById('btnPatioCompartilhar').addEventListener('click', async ()=>{
+    const text = patioBuildResumo();
+    try{
+      if(navigator.share){ await navigator.share({ text }); return; }
+      await navigator.clipboard.writeText(text);
+      showToast('Resumo copiado');
+    }catch(err){
+      if(err && err.name==='AbortError') return;
+      console.error(err);
+      showToast('Não foi possível compartilhar');
+    }
+  });
+
   // ---------- ESCALA DE ABATE PROGRAMADA (sugestões no lançamento) ----------
   function escalaLabelValor(e){
     return `${e.destino || ''} ${e.qtde || ''}`.trim();
@@ -1640,6 +2000,7 @@ if(isConfigured){
     renderRelatorio();
     renderHistorico();
     renderCurrais();
+    renderPatio();
   }
 
   // ---------- NAV ----------
