@@ -374,18 +374,31 @@
 <script>
 (function(){
   var box=document.getElementById('bootErro'), msg=document.getElementById('bootErroMsg');
-  function show(t){ msg.textContent=t; box.style.display='block'; }
+  var FILES=['index.html','sw.js','firebase-bundle.js','jspdf.umd.min.js','jspdf.plugin.autotable.min.js','xlsx.full.min.js'];
+  var primeiro='', diagFeito=false;
+  function diag(){
+    if(diagFeito) return; diagFeito=true;
+    var el=document.createElement('div'); el.style.cssText='margin-top:6px; font-weight:400; font-size:12px; word-break:break-all;';
+    el.textContent='Verificando arquivos...'; msg.parentNode.insertBefore(el, document.getElementById('bootErroBtn'));
+    Promise.all(FILES.map(function(f){
+      return fetch(f+'?d='+Date.now(), {cache:'no-store'}).then(function(r){ return f+': '+(r.ok?'ok':'ERRO '+r.status); }).catch(function(){ return f+': sem conexão'; });
+    })).then(function(r){ el.textContent = r.join(' | '); });
+  }
+  function show(t, forcar){
+    if(primeiro && !forcar) { diag(); return; }
+    primeiro = t; msg.textContent = t; box.style.display='block'; diag();
+  }
   window.addEventListener('error', function(e){
     if(window.__appBooted) return;
     if(e.target && e.target.tagName && e.target.tagName!=='SCRIPT') return;
     var alvo = e.target && (e.target.src||e.target.href);
-    show('O app não iniciou: ' + (alvo ? 'falha ao carregar ' + alvo : (e.message||'erro desconhecido')));
+    show('O app não iniciou: ' + (alvo ? 'falha ao carregar ' + alvo : (e.message||'erro ao carregar o programa do app')));
   }, true);
   window.addEventListener('unhandledrejection', function(e){
     if(window.__appBooted) return;
     show('O app não iniciou: ' + ((e.reason && e.reason.message) || e.reason));
   });
-  setTimeout(function(){ if(!window.__appBooted) show('O app não iniciou. Toque em "Limpar e recarregar".'); }, 8000);
+  setTimeout(function(){ if(!window.__appBooted) show('O app não iniciou (sem mensagem de erro).'); }, 8000);
   document.getElementById('bootErroBtn').addEventListener('click', async function(){
     try{
       if(navigator.serviceWorker){ var rs = await navigator.serviceWorker.getRegistrations(); for(var i=0;i<rs.length;i++) await rs[i].unregister(); }
@@ -753,7 +766,7 @@
       <span>Manejo</span>
     </button>
     </div>
-    <div class="app-footer">Powered by AG · v30</div>
+    <div class="app-footer">Powered by AG · v31</div>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -2084,3 +2097,533 @@ if(isConfigured){
       const fech = vis.filter(r=>r.unidade===k && r.tipo==='fechamento');
       const mov = vis.filter(r=>r.unidade===k && r.tipo==='movimentacao');
       const desde = r => (r.data && r.data < patioDate) ? ' (desde '+patioDdmm(r.data)+')' : '';
+      if(fech.length) blocos.push({
+        titulo: nome+' — Currais fechados',
+        colunas:[{h:'Currais / piquetes',w:3},{h:'Finalidade',w:2},{h:'Situação',w:1.5},{h:'Obs',w:2},{h:'Animais',w:1.1,align:'right'}],
+        linhas: fech.map(r=>[
+          (r.currais||[]).join(', ')+desde(r),
+          (PATIO_FINALIDADES[r.finalidade]||'')+(r.escala?' · '+r.escala:''),
+          r.status==='fechado' ? 'Fechado' : 'Liberado',
+          r.obs || '—',
+          r.qtd || '—'
+        ])
+      });
+      if(mov.length) blocos.push({
+        titulo: nome+' — Movimentações',
+        colunas:[{h:'De',w:2.2},{h:'Para',w:2.2},{h:'Quando',w:1.6},{h:'Situação',w:1.5},{h:'Obs',w:1.6},{h:'Animais',w:1.1,align:'right'}],
+        linhas: mov.map(r=>[
+          (r.origem||[]).join(', ')+desde(r),
+          (r.destino||[]).join(', '),
+          PATIO_PERIODOS[r.periodo]||'',
+          r.status==='planejada' ? 'Planejada' : 'Realizada',
+          r.obs || '—',
+          r.qtd || '—'
+        ])
+      });
+    });
+    const un = patioUnidadeFiltro==='todas' ? 'Todas as unidades' : PATIO_UNIDADES[patioUnidadeFiltro].nome;
+    return {
+      titulo: 'Manejo de Currais',
+      sub: fmtDateLabel(patioDate)+' · '+un,
+      kpis:[
+        { num: document.getElementById('patioKpiFechados').textContent, label:'Currais fechados' },
+        { num: document.getElementById('patioKpiMov').textContent, label:'Movimentações planejadas' },
+        { num: vis.filter(r=>r.tipo==='fechamento' && r.status==='fechado').reduce((n,r)=>n+(Number(r.qtd)||0),0), label:'Animais em currais fechados' }
+      ],
+      blocos
+    };
+  }
+  function patioFileTag(){ return patioDate + (patioUnidadeFiltro==='todas' ? '' : '-'+patioUnidadeFiltro); }
+  function patioTemDados(){
+    if(patioSpec().blocos.length===0){ showToast('Nada registrado neste dia'); return false; }
+    return true;
+  }
+  document.getElementById('btnPatioPdf').addEventListener('click', ()=>{
+    if(!patioTemDados()) return;
+    try{ specToPdf(patioSpec()).save('manejo-'+patioFileTag()+'.pdf'); }
+    catch(e){ console.error(e); showToast('Não foi possível gerar o PDF'); }
+  });
+  document.getElementById('btnPatioJpeg').addEventListener('click', async ()=>{
+    if(!patioTemDados()) return;
+    try{ downloadBlob(await specToJpegBlob(patioSpec()), 'manejo-'+patioFileTag()+'.jpg'); }
+    catch(e){ console.error(e); showToast('Não foi possível gerar a imagem'); }
+  });
+  document.getElementById('btnPatioCompartilhar').addEventListener('click', async ()=>{
+    if(!patioTemDados()) return;
+    try{
+      const blob = await specToJpegBlob(patioSpec());
+      const name = 'manejo-'+patioFileTag()+'.jpg';
+      const file = new File([blob], name, { type:'image/jpeg' });
+      if(navigator.canShare && navigator.canShare({ files:[file] })){
+        await navigator.share({ files:[file], title:'Manejo O.L', text:'Manejo O.L — '+fmtDateLabel(patioDate) });
+      }else{
+        downloadBlob(blob, name);
+        showToast('Imagem baixada — anexe no WhatsApp');
+      }
+    }catch(e){
+      if(e && e.name==='AbortError') return;
+      console.error(e); showToast('Não foi possível compartilhar');
+    }
+  });
+  document.getElementById('btnPatioTexto').addEventListener('click', async ()=>{
+    try{ await navigator.clipboard.writeText(patioBuildResumo()); showToast('Texto copiado'); }
+    catch(e){ console.error(e); showToast('Não foi possível copiar'); }
+  });
+
+  // ----- Relatório: JPEG no mesmo layout do PDF -----
+  function reportSpec(){
+    const list = reportList().sort((a,b)=>a.criadoEm-b.criadoEm);
+    const isSemana = relMode==='semana';
+    const total = list.reduce((s,r)=>s+Number(r.qtd),0);
+    const byType = {};
+    list.forEach(r=>{ byType[r.tipo] = byType[r.tipo] || {qtd:0,count:0}; byType[r.tipo].qtd += Number(r.qtd); byType[r.tipo].count++; });
+    const blocos = [];
+    const ids = Object.keys(byType).sort((a,b)=>byType[b].qtd-byType[a].qtd);
+    if(ids.length) blocos.push({
+      titulo:'Por tipo de processamento',
+      colunas:[{h:'Tipo',w:3},{h:'Lotes',w:1,align:'right'},{h:'Animais',w:1.2,align:'right'}],
+      linhas: ids.map(id=>[(typeMap[id]||TYPES[0]).label, byType[id].count, byType[id].qtd+' cab.'])
+    });
+    const emb = embarquesList(list);
+    if(emb.length) blocos.push({
+      titulo:'Embarques ('+emb.length+')',
+      colunas:[{h:'Data',w:1.4},{h:'Carimbo',w:1.6},{h:'Destino',w:2.4},{h:'Animais',w:1.2,align:'right'}],
+      linhas: emb.map(e=>[e.data, e.carimbo, e.destino, e.qtd])
+    });
+    const colunas = [{h:'Origem',w:1.5},{h:'Destino',w:1.5},{h:'Tipo',w:1.2},{h:'Detalhe',w:3},{h:'Obs',w:2},{h:'Qtd',w:0.9,align:'right'}];
+    if(isSemana) colunas.unshift({h:'Data',w:1.1});
+    blocos.push({
+      titulo:'Detalhamento', colunas,
+      linhas: list.map(r=>{
+        const t = typeMap[r.tipo] || TYPES[0];
+        const det = r.tipo==='entrada' ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+          : r.tipo==='saida' ? [r.carimbo?'Carimbo '+r.carimbo:'', r.escala?'Esc. '+r.escala:'', r.embarque?'Emb. '+r.embarque:'', r.refugoDente?'Ref.dente '+r.refugoDente:'', r.refugoPeso?'Ref.peso '+r.refugoPeso:''].filter(Boolean).join(' · ')
+          : (r.carimbo ? 'Carimbo '+r.carimbo : '');
+        const row = [r.curralOrigem||'—', r.curralDestino||'—', t.short, det||'—', r.obs||'—', r.qtd];
+        if(isSemana) row.unshift(r.data.slice(5).split('-').reverse().join('/'));
+        return row;
+      })
+    });
+    return {
+      titulo:'Relatório de Processamento', sub: reportLabel(),
+      kpis:[{ num: total, label:'Animais processados' },{ num: list.length, label:'Registros / lotes' }],
+      blocos
+    };
+  }
+  document.getElementById('btnJpeg').addEventListener('click', async ()=>{
+    if(reportList().length===0){ showToast('Sem registros neste período'); return; }
+    try{ downloadBlob(await specToJpegBlob(reportSpec()), 'relatorio-processamento-'+reportFileTag()+'.jpg'); }
+    catch(e){ console.error(e); showToast('Não foi possível gerar a imagem'); }
+  });
+
+  // ---------- ESCALA DE ABATE PROGRAMADA (sugestões no lançamento) ----------
+  function escalaLabelValor(e){
+    return `${e.destino || ''} ${e.qtde || ''}`.trim();
+  }
+  function renderEscalaSugestoes(){
+    document.getElementById('escProgCount').textContent = escalasProgramadas.length;
+    const dl = document.getElementById('escalaSugestoesList');
+    dl.innerHTML = escalasProgramadas.map(e=>{
+      const dataBr = e.dataEmbarque ? e.dataEmbarque.slice(5).split('-').reverse().join('/') : '';
+      const valor = escalaLabelValor(e);
+      const label = `${dataBr} · ${e.mercado||''} · ${e.qtde||''} cab.`;
+      return `<option value="${escapeHtml(valor)}" label="${escapeHtml(label)}"></option>`;
+    }).join('');
+  }
+  // Selecionar uma escala programada NÃO altera a Data do lançamento — esse campo é a data
+  // em que os animais daquele curral foram lidos/contados, que pode ser diferente da data do embarque.
+  // ---------- IMPORTAR ESCALA DE ABATE ----------
+  document.getElementById('btnImportarEscala').addEventListener('click', ()=>{
+    if(!db){ showToast('Configure o Firestore primeiro'); return; }
+    document.getElementById('fileImportarEscala').click();
+  });
+  document.getElementById('fileImportarEscala').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    if(!isAdmin){ showToast('Apenas administradores podem importar a escala de abate'); return; }
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array', cellDates:true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'', range:1 }); // linha 2 tem os cabeçalhos nesta planilha
+      const registros = rows.map(row=>{
+        const dataEmbarque = parseDataFlexivel(row['Data']);
+        const dataAbate = parseDataFlexivel(row['Data Abate']);
+        const qtde = Number(row['QTDE']) || 0;
+        if(!dataEmbarque || !qtde) return null;
+        return {
+          mes: String(row['Mês']||'').trim(),
+          dataEmbarque,
+          dataAbate,
+          categoria: String(row['Categoria']||'').trim(),
+          qtde,
+          mercado: String(row['Mercado']||'').trim(),
+          destino: String(row['Destino']||'').trim(),
+        };
+      }).filter(Boolean);
+      if(registros.length===0){
+        showToast('Nenhuma linha válida encontrada na planilha');
+        return;
+      }
+      const existentes = escalasProgramadas.length;
+      if(existentes > 0){
+        const ok = window.confirm(`Isso vai apagar as ${existentes} escala(s) programada(s) já importada(s) e substituir pelas ${registros.length} desta planilha. Continuar?`);
+        if(!ok) return;
+      }
+      showToast(`Importando ${registros.length} escala(s)...`);
+      // Apaga tudo que já existia antes de gravar a nova planilha, pra ficar só com a última importação.
+      const idsAntigos = escalasProgramadas.map(x=>x.id);
+      const chunkSize = 450;
+      for(let i=0; i<idsAntigos.length; i+=chunkSize){
+        const batch = writeBatch(db);
+        idsAntigos.slice(i, i+chunkSize).forEach(id=>{
+          batch.delete(doc(db, ESCALAS_COLLECTION, id));
+        });
+        await batch.commit();
+      }
+      for(let i=0; i<registros.length; i+=chunkSize){
+        const batch = writeBatch(db);
+        registros.slice(i, i+chunkSize).forEach(rec=>{
+          const ref = doc(collection(db, ESCALAS_COLLECTION));
+          batch.set(ref, rec);
+        });
+        await batch.commit();
+      }
+      showToast(`${registros.length} escala(s) programada(s) importada(s)`);
+    }catch(err){
+      console.error(err);
+      const msg = err && err.code === 'permission-denied'
+        ? 'Sem permissão no Firestore — confirme se colou a regra da coleção escalas_programadas'
+        : 'Erro ao importar: ' + (err && err.message ? err.message : 'formato inválido');
+      showToast(msg);
+    }
+  });
+
+  function renderAll(){
+    renderHeader();
+    renderHoje();
+    renderRelatorio();
+    renderHistorico();
+    renderCurrais();
+    renderPatio();
+  }
+
+  // ---------- NAV ----------
+  function switchView(view){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+view).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  }
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>switchView(btn.dataset.view));
+  });
+
+  document.getElementById('hojePrev').addEventListener('click', ()=>{ hojeDate = shiftDate(hojeDate,-1); renderHoje(); });
+  document.getElementById('hojeNext').addEventListener('click', ()=>{ hojeDate = shiftDate(hojeDate,1); renderHoje(); });
+  document.getElementById('relPrev').addEventListener('click', ()=>{ relDate = shiftDate(relDate, relMode==='semana' ? -7 : -1); renderRelatorio(); });
+  document.getElementById('relNext').addEventListener('click', ()=>{ relDate = shiftDate(relDate, relMode==='semana' ? 7 : 1); renderRelatorio(); });
+  document.getElementById('modeDia').addEventListener('click', ()=>{
+    relMode = 'dia';
+    document.getElementById('modeDia').classList.add('active');
+    document.getElementById('modeSemana').classList.remove('active');
+    renderRelatorio();
+  });
+  document.getElementById('modeSemana').addEventListener('click', ()=>{
+    relMode = 'semana';
+    document.getElementById('modeSemana').classList.add('active');
+    document.getElementById('modeDia').classList.remove('active');
+    renderRelatorio();
+  });
+
+  document.getElementById('btnCopiar').addEventListener('click', async ()=>{
+    const txt = buildReportText();
+    try{
+      await navigator.clipboard.writeText(txt);
+      showToast('Relatório copiado');
+    }catch(e){
+      showToast('Não foi possível copiar');
+    }
+  });
+
+  document.getElementById('btnPdf').addEventListener('click', ()=>{
+    const list = reportList();
+    if(list.length===0){
+      showToast('Sem registros neste período');
+      return;
+    }
+    const docPdf = buildPdfDoc();
+    docPdf.save(`relatorio-processamento-${reportFileTag()}.pdf`);
+  });
+
+  document.getElementById('btnWhats').addEventListener('click', async ()=>{
+    const list = reportList();
+    if(list.length===0){
+      showToast('Sem registros neste período');
+      return;
+    }
+    try{
+      const docPdf = buildPdfDoc();
+      const blob = docPdf.output('blob');
+      const fileName = `relatorio-processamento-${reportFileTag()}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({
+          files: [file],
+          title: 'Relatório de Processamento',
+          text: `Relatório de processamento — ${reportLabel()}`
+        });
+      }else{
+        docPdf.save(fileName);
+        showToast('PDF baixado — anexe manualmente no WhatsApp');
+      }
+    }catch(e){
+      if(e && e.name === 'AbortError') return;
+      console.error(e);
+      showToast('Não foi possível compartilhar o PDF');
+    }
+  });
+
+  function recordsToRows(list){
+    return list.map(r=>{
+      const t = typeMap[r.tipo] || TYPES[0];
+      return {
+        'Data': r.data,
+        'Tipo': t.short,
+        'Curral Origem': r.curralOrigem || '',
+        'Curral Destino': r.curralDestino || '',
+        'Quantidade': r.qtd,
+        'Fornecedor': r.fornecedor || '',
+        'Raça predominante': r.raca || '',
+        'Carimbo': r.carimbo || '',
+        'Escala': r.escala || '',
+        'Embarque': r.embarque || '',
+        'Refugo de dente': r.refugoDente || '',
+        'Refugo de peso': r.refugoPeso || '',
+        'Observações': r.obs || '',
+      };
+    });
+  }
+
+  document.getElementById('btnExcel').addEventListener('click', ()=>{
+    const list = reportList().sort((a,b)=>a.criadoEm-b.criadoEm);
+    if(list.length===0){
+      showToast('Sem registros neste período');
+      return;
+    }
+    const rows = recordsToRows(list);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(k=>({ wch: Math.max(k.length, 12) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
+    XLSX.writeFile(wb, `relatorio-processamento-${reportFileTag()}.xlsx`);
+  });
+
+  document.getElementById('btnExcelTudo').addEventListener('click', ()=>{
+    if(data.length===0){
+      showToast('Sem registros no histórico');
+      return;
+    }
+    const list = [...data].sort((a,b)=>a.criadoEm-b.criadoEm);
+    const rows = recordsToRows(list);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(k=>({ wch: Math.max(k.length, 12) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
+    XLSX.writeFile(wb, `historico-processamento-completo.xlsx`);
+  });
+
+  // ---------- IMPORTAR ----------
+  function parseDataFlexivel(v){
+    if(v instanceof Date){
+      return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+    }
+    const s = String(v||'').trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const br = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if(br){
+      let [,d,m,y] = br;
+      if(y.length===2) y = '20'+y;
+      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    const dt = new Date(s);
+    if(!isNaN(dt)) return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    return '';
+  }
+  function rowToRecord(row){
+    const tipoTxt = String(row['Tipo']||'').trim().toLowerCase();
+    const tipoObj = TYPES.find(t=> t.short.toLowerCase() === tipoTxt || t.id === tipoTxt);
+    if(!tipoObj) return null;
+    const record = {
+      tipo: tipoObj.id,
+      data: parseDataFlexivel(row['Data']),
+      curralOrigem: String(row['Curral Origem']||'').trim(),
+      curralDestino: String(row['Curral Destino']||'').trim(),
+      qtd: Number(row['Quantidade']) || 0,
+      obs: String(row['Observações']||'').trim(),
+      criadoEm: Date.now(),
+    };
+    if(tipoObj.id === 'entrada'){
+      record.fornecedor = String(row['Fornecedor']||'').trim();
+      record.raca = String(row['Raça predominante']||'').trim();
+    }else if(tipoObj.id === 'saida'){
+      record.carimbo = String(row['Carimbo']||'').trim();
+      record.escala = String(row['Escala']||'').trim();
+      record.embarque = String(row['Embarque']||'').trim();
+      record.refugoDente = Number(row['Refugo de dente']) || 0;
+      record.refugoPeso = Number(row['Refugo de peso']) || 0;
+    }else if(tipoObj.id === 'embarque'){
+      record.carimbo = String(row['Carimbo']||'').trim();
+      record.curralOrigem = '';
+    }
+    const camposOk = tipoObj.id === 'embarque'
+      ? (record.data && record.curralDestino && record.qtd)
+      : (record.data && record.curralOrigem && record.curralDestino && record.qtd);
+    if(!camposOk) return null;
+    return record;
+  }
+  document.getElementById('btnImportar').addEventListener('click', ()=>{
+    if(!db){ showToast('Configure o Firestore primeiro'); return; }
+    document.getElementById('fileImportar').click();
+  });
+  document.getElementById('fileImportar').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array', cellDates:true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      const records = rows.map(rowToRecord).filter(Boolean);
+      const skipped = rows.length - records.length;
+      if(records.length===0){
+        showToast('Nenhuma linha válida encontrada na planilha');
+        return;
+      }
+      showToast(`Importando ${records.length} registro(s)...`);
+      const chunkSize = 450; // margem sob o limite de 500 operações por batch do Firestore
+      for(let i=0; i<records.length; i+=chunkSize){
+        const batch = writeBatch(db);
+        records.slice(i, i+chunkSize).forEach(rec=>{
+          const ref = doc(collection(db, FIRESTORE_COLLECTION));
+          batch.set(ref, rec);
+        });
+        await batch.commit();
+      }
+      showToast(`${records.length} registro(s) importado(s)${skipped ? ' · '+skipped+' linha(s) ignorada(s)' : ''}`);
+    }catch(err){
+      console.error(err);
+      const msg = err && err.code === 'permission-denied'
+        ? 'Sem permissão no Firestore — confirme as regras de segurança'
+        : 'Erro ao importar: ' + (err && err.message ? err.message : 'formato inválido');
+      showToast(msg);
+    }
+  });
+
+  // ---------- FORM ----------
+  document.getElementById('formNovo').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!db){
+      showToast('Configure o Firestore primeiro');
+      return;
+    }
+    const isEmbarque = selectedType === 'embarque';
+    const record = {
+      tipo: selectedType,
+      data: document.getElementById('fData').value,
+      curralOrigem: isEmbarque ? '' : document.getElementById('fCurralOrigem').value.trim(),
+      curralDestino: isEmbarque ? document.getElementById('fDestinoSolo').value.trim() : document.getElementById('fCurralDestino').value.trim(),
+      qtd: Number(document.getElementById('fQtd').value),
+      obs: document.getElementById('fObs').value.trim(),
+      criadoEm: editingId ? (data.find(r=>r.id===editingId)?.criadoEm || Date.now()) : Date.now(),
+    };
+    if(selectedType === 'entrada'){
+      record.fornecedor = document.getElementById('fFornecedor').value.trim();
+      record.raca = document.getElementById('fRaca').value.trim();
+    }else if(selectedType === 'saida'){
+      record.carimbo = document.getElementById('fCarimbo').value.trim();
+      record.escala = document.getElementById('fEscala').value.trim();
+      record.embarque = document.getElementById('fEmbarque').value.trim();
+      record.refugoDente = Number(document.getElementById('fRefugoDente').value) || 0;
+      record.refugoPeso = Number(document.getElementById('fRefugoPeso').value) || 0;
+    }else if(isEmbarque){
+      record.carimbo = document.getElementById('fCarimboEmb').value.trim();
+    }
+    const camposOk = isEmbarque
+      ? (record.data && record.curralDestino && record.qtd)
+      : (record.data && record.curralOrigem && record.curralDestino && record.qtd);
+    if(!camposOk){
+      showToast('Preencha os campos obrigatórios');
+      return;
+    }
+    const ok = editingId ? await updateRecord(editingId, record) : await addRecord(record);
+    if(!ok) return;
+    const wasEditing = !!editingId;
+    editingId = null;
+    document.getElementById('formNovo').reset();
+    document.getElementById('fData').value = todayISO();
+    selectedType = TYPES[0].id;
+    renderTypeGrid();
+    toggleTypeFields();
+    document.getElementById('novoTitle').textContent = 'Novo processamento';
+    document.getElementById('editBanner').style.display = 'none';
+    document.getElementById('btnSubmit').textContent = 'Registrar processamento';
+    showToast(wasEditing ? 'Alterações salvas' : 'Processamento registrado');
+  });
+
+  // ---------- INIT ----------
+  function init(){
+    document.getElementById('fData').value = todayISO();
+    renderTypeGrid();
+    toggleTypeFields();
+    updateClock();
+    setInterval(updateClock, 30000);
+    renderAll();
+    initAuth();
+    window.__appBooted = true;
+    var be=document.getElementById('bootErro'); if(be) be.style.display='none';
+  }
+  init();
+})();
+
+if('serviceWorker' in navigator){
+  const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+  let ignoredInitialClaim = hadControllerAtLoad;
+
+  function showUpdateBanner(){
+    document.getElementById('updateBanner').style.display = 'flex';
+  }
+  document.getElementById('btnAtualizarApp').addEventListener('click', ()=>{
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(!ignoredInitialClaim){ ignoredInitialClaim = true; return; }
+    showUpdateBanner();
+  });
+
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // Verifica se já existe uma atualização instalada aguardando (ex: app ficou aberto em segundo plano)
+      if(reg.waiting && hadControllerAtLoad) showUpdateBanner();
+      reg.addEventListener('updatefound', ()=>{
+        const novo = reg.installing;
+        if(!novo) return;
+        novo.addEventListener('statechange', ()=>{
+          if(novo.state === 'installed' && hadControllerAtLoad) showUpdateBanner();
+        });
+      });
+      // Reconfere no servidor de tempos em tempos, já que um PWA aberto pode
+      // ficar dias sem navegação nenhuma (o que normalmente dispara a checagem).
+      setInterval(()=> reg.update().catch(()=>{}), 60*60*1000);
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible') reg.update().catch(()=>{});
+      });
+    }).catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
