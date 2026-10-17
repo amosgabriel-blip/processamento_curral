@@ -454,12 +454,12 @@
         </div>
         <div class="row-2" id="rowCurralOrigem">
           <div class="field">
-            <label>Curral origem</label>
+            <label id="labelCurralOrigem">Curral origem</label>
             <input type="text" id="fCurralOrigem" placeholder="Ex: C-14">
           </div>
           <div class="field">
             <label id="labelCurralDestino">Curral destino</label>
-            <input type="text" id="fCurralDestino" placeholder="Ex: C-22">
+            <input type="text" id="fCurralDestino" placeholder="Ex: C-22" autocomplete="off"><datalist id="formacaoSugestoesList"></datalist>
           </div>
         </div>
         <div class="field" id="rowDestinoSolo" style="display:none;">
@@ -478,6 +478,10 @@
               <label>Raça predominante</label>
               <input type="text" id="fRaca" placeholder="Ex: Nelore">
             </div>
+          </div>
+          <div class="field">
+            <label>Curral final no confinamento (opcional)</label>
+            <input type="text" id="fCurralFinal" placeholder="Onde o lote vai terminar. Ex: D-08" autocomplete="off">
           </div>
         </div>
 
@@ -600,6 +604,13 @@
       <div class="type-grid" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">
         <div class="type-opt active" id="modoGordo" data-modo="gordo">Boi Gordo &middot; Escalas</div>
         <div class="type-opt" id="modoMagro" data-modo="magro">Boi Magro &middot; Lotes</div>
+      </div>
+      <div id="blocoFormacao" style="display:none; margin-bottom:18px;">
+        <div class="section-title">Currais em formação <span class="count-chip" id="formacaoCount">0</span></div>
+        <div class="curral-sub" style="margin-bottom:10px;">Cada entrada de boi magro alimenta o curral de formação escolhido. Quando o lote estiver completo, toque em "Fechar curral".</div>
+        <div id="formacaoList"></div>
+        <div class="section-title" style="margin-top:16px;">Lotes fechados <span class="count-chip" id="formacaoFechCount">0</span></div>
+        <div id="formacaoFechList"></div>
       </div>
       <div class="row-2">
         <div class="field">
@@ -766,7 +777,7 @@
       <span>Manejo</span>
     </button>
     </div>
-    <div class="app-footer">Powered by AG · v31</div>
+    <div class="app-footer">Powered by AG · v32</div>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -1065,6 +1076,7 @@ if(isConfigured){
     onSnapshot(qPat, (snapshot)=>{
       patio = snapshot.docs.map(d=>({ id: d.id, ...d.data() }));
       renderPatio();
+      renderCurrais();
     }, (err)=>{
       console.error(err);
       if(err && err.code === 'permission-denied') showToast('Sem permissão na coleção plano_patio — cole a regra no Firestore');
@@ -1125,6 +1137,13 @@ if(isConfigured){
     document.getElementById('rowCurralOrigem').style.display = isEmbarque ? 'none' : 'grid';
     document.getElementById('rowDestinoSolo').style.display = isEmbarque ? 'block' : 'none';
     document.getElementById('labelQtd').textContent = isEmbarque ? 'Total de animais' : 'Qtd. animais';
+    const isEntrada = selectedType === 'entrada';
+    document.getElementById('labelCurralOrigem').textContent = isEntrada ? 'Local de origem (Faz. Vera Cruz)' : 'Curral origem';
+    document.getElementById('labelCurralDestino').textContent = isEntrada ? 'Curral de formação do lote' : 'Curral destino';
+    document.getElementById('fCurralOrigem').placeholder = isEntrada ? 'Ex: Piquete 5' : 'Ex: C-14';
+    document.getElementById('fCurralDestino').placeholder = isEntrada ? 'Ex: E10 (onde fica até fechar)' : 'Ex: C-22';
+    if(isEntrada) document.getElementById('fCurralDestino').setAttribute('list','formacaoSugestoesList');
+    else document.getElementById('fCurralDestino').removeAttribute('list');
   }
 
   // ---------- EDIT ----------
@@ -1143,6 +1162,7 @@ if(isConfigured){
     if(record.tipo === 'entrada'){
       document.getElementById('fFornecedor').value = record.fornecedor || '';
       document.getElementById('fRaca').value = record.raca || '';
+      document.getElementById('fCurralFinal').value = record.curralFinal || '';
     }else if(record.tipo === 'saida'){
       document.getElementById('fCarimbo').value = record.carimbo || '';
       document.getElementById('fEscala').value = record.escala || '';
@@ -1193,7 +1213,7 @@ if(isConfigured){
       const t = typeMap[r.tipo] || TYPES[0];
       const hora = new Date(r.criadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       const detalhe = r.tipo === 'entrada'
-        ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+        ? [r.fornecedor, r.raca, r.curralFinal ? 'Final '+r.curralFinal : ''].filter(Boolean).join(' · ')
         : r.tipo === 'saida'
         ? [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ')
         : (r.carimbo ? 'Carimbo '+r.carimbo : '');
@@ -1293,7 +1313,7 @@ if(isConfigured){
       tbody.innerHTML = list.sort((a,b)=>a.criadoEm-b.criadoEm).map(r=>{
         const t = typeMap[r.tipo] || TYPES[0];
         const detalhe = r.tipo === 'entrada'
-          ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+          ? [r.fornecedor, r.raca, r.curralFinal ? 'Final '+r.curralFinal : ''].filter(Boolean).join(' · ')
           : r.tipo === 'saida'
           ? [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Escala '+r.escala : '', r.embarque ? 'Embarque '+r.embarque : '', r.refugoDente ? 'Refugo dente '+r.refugoDente : '', r.refugoPeso ? 'Refugo peso '+r.refugoPeso : ''].filter(Boolean).join(' · ')
           : (r.carimbo ? 'Carimbo '+r.carimbo : '');
@@ -1436,7 +1456,7 @@ if(isConfigured){
     const body = list.map(r=>{
       const t = typeMap[r.tipo] || TYPES[0];
       const detalhe = r.tipo === 'entrada'
-        ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+        ? [r.fornecedor, r.raca, r.curralFinal ? 'Final '+r.curralFinal : ''].filter(Boolean).join(' · ')
         : r.tipo === 'saida'
         ? [r.carimbo ? 'Carimbo '+r.carimbo : '', r.escala ? 'Esc. '+r.escala : '', r.embarque ? 'Emb. '+r.embarque : '', r.refugoDente ? 'Ref.dente '+r.refugoDente : '', r.refugoPeso ? 'Ref.peso '+r.refugoPeso : ''].filter(Boolean).join(' · ')
         : (r.carimbo ? 'Carimbo '+r.carimbo : '');
@@ -1637,6 +1657,7 @@ if(isConfigured){
     return `${fmt(min)} – ${fmt(max)}`;
   }
   function renderCurrais(){
+    renderFormacao();
     const isGordo = curraisMode === 'gordo';
     let list = isGordo ? escalaGroups() : loteGroups();
     const de = document.getElementById('fEscFiltroDe').value;
@@ -1712,6 +1733,7 @@ if(isConfigured){
     document.getElementById('labelTotalGeral').textContent = modo==='gordo' ? 'Escalas encontradas' : 'Lotes encontrados';
     document.getElementById('labelTotalAnimais').textContent = modo==='gordo' ? 'Animais nas escalas' : 'Animais nos lotes';
     document.getElementById('blocoEscalaAbate').style.display = modo==='gordo' ? 'block' : 'none';
+    document.getElementById('blocoFormacao').style.display = modo==='magro' ? 'block' : 'none';
     renderCurrais();
   }
   document.getElementById('modoGordo').addEventListener('click', ()=>setCurraisMode('gordo'));
@@ -2196,7 +2218,7 @@ if(isConfigured){
       titulo:'Detalhamento', colunas,
       linhas: list.map(r=>{
         const t = typeMap[r.tipo] || TYPES[0];
-        const det = r.tipo==='entrada' ? [r.fornecedor, r.raca].filter(Boolean).join(' · ')
+        const det = r.tipo==='entrada' ? [r.fornecedor, r.raca, r.curralFinal ? 'Final '+r.curralFinal : ''].filter(Boolean).join(' · ')
           : r.tipo==='saida' ? [r.carimbo?'Carimbo '+r.carimbo:'', r.escala?'Esc. '+r.escala:'', r.embarque?'Emb. '+r.embarque:'', r.refugoDente?'Ref.dente '+r.refugoDente:'', r.refugoPeso?'Ref.peso '+r.refugoPeso:''].filter(Boolean).join(' · ')
           : (r.carimbo ? 'Carimbo '+r.carimbo : '');
         const row = [r.curralOrigem||'—', r.curralDestino||'—', t.short, det||'—', r.obs||'—', r.qtd];
@@ -2214,6 +2236,108 @@ if(isConfigured){
     if(reportList().length===0){ showToast('Sem registros neste período'); return; }
     try{ downloadBlob(await specToJpegBlob(reportSpec()), 'relatorio-processamento-'+reportFileTag()+'.jpg'); }
     catch(e){ console.error(e); showToast('Não foi possível gerar a imagem'); }
+  });
+
+  // ---------- CURRAIS EM FORMAÇÃO (boi magro) ----------
+  function formacaoKey(x){ return String(x||'').trim().toLowerCase().replace(/\s+/g,' '); }
+  function formacaoLotes(){
+    const porCurral = {};
+    data.filter(r=>r.tipo==='entrada' && String(r.curralDestino||'').trim()).forEach(r=>{
+      const k = formacaoKey(r.curralDestino);
+      (porCurral[k] = porCurral[k] || { nome:String(r.curralDestino).trim(), ent:[] }).ent.push(r);
+    });
+    const fechAtivos = patio.filter(r=>r.tipo==='formacao' && r.ativo!==false);
+    const lotes = [];
+    Object.keys(porCurral).forEach(k=>{
+      const ent = porCurral[k].ent.slice().sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0));
+      const fech = fechAtivos.filter(f=>f.chave===k).sort((a,b)=>(a.fechadoEm||0)-(b.fechadoEm||0));
+      const buckets = fech.map(()=>[]).concat([[]]);
+      ent.forEach(r=>{
+        let i = 0;
+        while(i < fech.length && (fech[i].fechadoEm||0) < (r.criadoEm||0)) i++;
+        buckets[i].push(r);
+      });
+      buckets.forEach((b,i)=>{
+        if(!b.length) return;
+        const origens = {}; const forn = new Set(); let qtd = 0; let final = '';
+        b.forEach(r=>{
+          const q = Number(r.qtd)||0; qtd += q;
+          const o = String(r.curralOrigem||'—').trim() || '—';
+          origens[o] = (origens[o]||0) + q;
+          if(r.fornecedor) forn.add(String(r.fornecedor).trim());
+          if(r.curralFinal) final = r.curralFinal;
+        });
+        const f = fech[i] || null;
+        if(f && f.final) final = f.final;
+        const datas = b.map(r=>r.data||'').filter(Boolean).sort();
+        lotes.push({
+          chave:k, curral:porCurral[k].nome, aberto:!f, fech:f, qtd, entradas:b.length,
+          origens:Object.entries(origens).sort((a,c)=>c[1]-a[1]),
+          fornecedores:[...forn], final,
+          dataMin:datas[0]||'', dataMax:datas[datas.length-1]||''
+        });
+      });
+    });
+    return lotes;
+  }
+  function formacaoCardHtml(l){
+    const origRows = l.origens.map(([o,q])=>`<div class="breakdown-row"><div class="breakdown-name">${escapeHtml(o)} &#8594; ${escapeHtml(l.curral)}</div><div class="breakdown-num">${q}</div></div>`).join('');
+    const status = l.aberto ? '<span class="patio-status aberto">Em formação</span>' : `<span class="patio-status ok">Fechado${l.fech && l.fech.dataFechamento ? ' em '+patioDdmm(l.fech.dataFechamento) : ''}</span>`;
+    const btn = l.aberto
+      ? `<button type="button" class="chip-btn" data-form-fechar="${escapeHtml(l.chave)}">Fechar curral</button>`
+      : (l.fech ? `<button type="button" class="chip-btn" data-form-reabrir="${l.fech.id}">Reabrir</button>` : '');
+    return `<div class="curral-card" style="flex-direction:column; align-items:stretch; gap:10px;${l.aberto?'':' opacity:.8;'}">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div class="curral-name">Curral ${escapeHtml(l.curral)}</div>
+          <div class="curral-sub">${status} &middot; ${l.entradas} entrada${l.entradas>1?'s':''} &middot; ${fmtDateRange(l.dataMin, l.dataMax)}</div>
+        </div>
+        <div class="curral-num">${l.qtd}<div class="curral-sub" style="text-align:right;">animais</div></div>
+      </div>
+      <div class="table-wrap" style="padding:6px 12px;">${origRows}</div>
+      ${l.fornecedores.length ? `<div class="curral-sub">Fornecedor: ${escapeHtml(l.fornecedores.join(', '))}</div>` : ''}
+      <div class="curral-sub">Curral final no confinamento: <strong>${l.final ? escapeHtml(l.final) : 'a definir'}</strong></div>
+      <div class="patio-actions">${btn}</div>
+    </div>`;
+  }
+  function renderFormacao(){
+    const elA = document.getElementById('formacaoList');
+    if(!elA) return;
+    const lotes = formacaoLotes();
+    const abertos = lotes.filter(l=>l.aberto).sort((a,b)=>b.dataMax.localeCompare(a.dataMax));
+    const fechados = lotes.filter(l=>!l.aberto).sort((a,b)=>((b.fech&&b.fech.fechadoEm)||0)-((a.fech&&a.fech.fechadoEm)||0)).slice(0,12);
+    document.getElementById('formacaoCount').textContent = abertos.length;
+    document.getElementById('formacaoFechCount').textContent = fechados.length;
+    elA.innerHTML = abertos.length ? abertos.map(formacaoCardHtml).join('') : `<div class="empty-state"><p>Nenhum curral em formação. Lance uma Entrada informando o curral de formação.</p></div>`;
+    document.getElementById('formacaoFechList').innerHTML = fechados.length ? fechados.map(formacaoCardHtml).join('') : `<div class="empty-state"><p>Nenhum lote fechado ainda.</p></div>`;
+    const nomes = []; const vistos = new Set();
+    abertos.concat(lotes.filter(l=>!l.aberto)).forEach(l=>{ if(!vistos.has(l.chave)){ vistos.add(l.chave); nomes.push(l.curral); } });
+    document.getElementById('formacaoSugestoesList').innerHTML = nomes.map(n=>`<option value="${escapeHtml(n)}"></option>`).join('');
+  }
+  document.getElementById('view-currais').addEventListener('click', async (e)=>{
+    const t = e.target.closest('[data-form-fechar],[data-form-reabrir]');
+    if(!t) return;
+    try{
+      if(t.dataset.formFechar){
+        const l = formacaoLotes().find(x=>x.aberto && x.chave===t.dataset.formFechar);
+        if(!l) return;
+        const final = window.prompt(`Fechar o curral ${l.curral} com ${l.qtd} animais.\nCurral final no confinamento (opcional):`, l.final || '');
+        if(final === null) return;
+        await addDoc(collection(db, PATIO_COLLECTION), {
+          tipo:'formacao', chave:l.chave, curral:l.curral, ativo:true, total:l.qtd,
+          final:final.trim(), dataFechamento:todayISO(), fechadoEm:Date.now(),
+          fechadoPor:currentUserEmail, criadoEm:Date.now()
+        });
+        showToast('Curral fechado');
+      }else if(t.dataset.formReabrir){
+        if(!window.confirm('Reabrir este curral para continuar alimentando o lote?')) return;
+        await updateDoc(doc(db, PATIO_COLLECTION, t.dataset.formReabrir), { ativo:false, reabertoEm:Date.now(), reabertoPor:currentUserEmail });
+        showToast('Curral reaberto');
+      }
+    }catch(err){
+      console.error(err);
+      showToast('Erro ao atualizar o curral. Verifique a conexão.');
+    }
   });
 
   // ---------- ESCALA DE ABATE PROGRAMADA (sugestões no lançamento) ----------
@@ -2393,6 +2517,7 @@ if(isConfigured){
         'Tipo': t.short,
         'Curral Origem': r.curralOrigem || '',
         'Curral Destino': r.curralDestino || '',
+        'Curral Final': r.curralFinal || '',
         'Quantidade': r.qtd,
         'Fornecedor': r.fornecedor || '',
         'Raça predominante': r.raca || '',
@@ -2467,6 +2592,7 @@ if(isConfigured){
     if(tipoObj.id === 'entrada'){
       record.fornecedor = String(row['Fornecedor']||'').trim();
       record.raca = String(row['Raça predominante']||'').trim();
+      record.curralFinal = String(row['Curral Final']||'').trim();
     }else if(tipoObj.id === 'saida'){
       record.carimbo = String(row['Carimbo']||'').trim();
       record.escala = String(row['Escala']||'').trim();
@@ -2542,6 +2668,7 @@ if(isConfigured){
     if(selectedType === 'entrada'){
       record.fornecedor = document.getElementById('fFornecedor').value.trim();
       record.raca = document.getElementById('fRaca').value.trim();
+      record.curralFinal = document.getElementById('fCurralFinal').value.trim();
     }else if(selectedType === 'saida'){
       record.carimbo = document.getElementById('fCarimbo').value.trim();
       record.escala = document.getElementById('fEscala').value.trim();
