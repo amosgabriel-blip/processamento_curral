@@ -367,6 +367,34 @@
 </style>
 </head>
 <body>
+<div id="bootErro" style="display:none; position:fixed; left:0; right:0; top:0; z-index:9999; background:#B42318; color:#fff; padding:12px 16px; font:600 13px/1.4 Arial,sans-serif;">
+  <div id="bootErroMsg">O app não iniciou.</div>
+  <button id="bootErroBtn" type="button" style="margin-top:8px; background:#fff; color:#B42318; border:none; border-radius:20px; padding:8px 14px; font-weight:700; cursor:pointer;">Limpar e recarregar</button>
+</div>
+<script>
+(function(){
+  var box=document.getElementById('bootErro'), msg=document.getElementById('bootErroMsg');
+  function show(t){ msg.textContent=t; box.style.display='block'; }
+  window.addEventListener('error', function(e){
+    if(window.__appBooted) return;
+    var alvo = e.target && (e.target.src||e.target.href);
+    show('O app não iniciou: ' + (alvo ? 'falha ao carregar ' + alvo : (e.message||'erro desconhecido')));
+  }, true);
+  window.addEventListener('unhandledrejection', function(e){
+    if(window.__appBooted) return;
+    show('O app não iniciou: ' + ((e.reason && e.reason.message) || e.reason));
+  });
+  setTimeout(function(){ if(!window.__appBooted) show('O app não iniciou. Toque em "Limpar e recarregar".'); }, 8000);
+  document.getElementById('bootErroBtn').addEventListener('click', async function(){
+    try{
+      if(navigator.serviceWorker){ var rs = await navigator.serviceWorker.getRegistrations(); for(var i=0;i<rs.length;i++) await rs[i].unregister(); }
+      if(window.caches){ var ks = await caches.keys(); for(var j=0;j<ks.length;j++) await caches.delete(ks[j]); }
+    }catch(_){}
+    location.reload();
+  });
+})();
+</script>
+
 <div id="app">
 
   <header>
@@ -612,6 +640,7 @@
         <div class="kpi-card"><div class="kpi-num" id="patioKpiFechados">0</div><div class="kpi-label">Currais/piquetes fechados</div></div>
         <div class="kpi-card alt"><div class="kpi-num" id="patioKpiMov">0</div><div class="kpi-label">Movimentações planejadas</div></div>
       </div>
+      <div class="curral-sub" id="patioTotais" style="margin:-6px 0 12px;"></div>
       <button class="btn-primary" id="btnPatioNovo" type="button" style="margin-bottom:14px;">+ Fechar curral / planejar movimentação</button>
 
       <form id="formPatio" style="display:none; margin-bottom:16px;">
@@ -673,6 +702,10 @@
           </div>
         </div>
         <div class="field">
+          <label>Qtd. de animais (opcional)</label>
+          <input type="number" id="fPatioQtd" min="0" inputmode="numeric" placeholder="Total de cabeças nesses currais">
+        </div>
+        <div class="field">
           <label>Observação</label>
           <textarea id="fPatioObs" rows="2" placeholder="Opcional"></textarea>
         </div>
@@ -719,7 +752,7 @@
       <span>Manejo</span>
     </button>
     </div>
-    <div class="app-footer">Powered by AG</div>
+    <div class="app-footer">Powered by AG · v29</div>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -1717,10 +1750,10 @@ if(isConfigured){
     if(ehFech){
       const fin = PATIO_FINALIDADES[r.finalidade] || '';
       corpo = `<div class="entry-top"><div class="entry-type">${patioChips(r.currais)}</div></div>
-        <div class="entry-meta"><span>${escapeHtml(un.nome)} · ${escapeHtml(fin)}${r.escala?' · '+escapeHtml(r.escala):''}</span></div>`;
+        <div class="entry-meta"><span>${escapeHtml(un.nome)} · ${escapeHtml(fin)}${r.escala?' · '+escapeHtml(r.escala):''}</span>${r.qtd?`<strong>${r.qtd} cab.</strong>`:''}</div>`;
     }else{
       corpo = `<div class="entry-top"><div class="entry-type">${patioChips(r.origem)}<span class="patio-arrow">&#8594;</span>${patioChips(r.destino)}</div></div>
-        <div class="entry-meta"><span>${escapeHtml(un.nome)} · ${escapeHtml(PATIO_PERIODOS[r.periodo]||'')}</span></div>`;
+        <div class="entry-meta"><span>${escapeHtml(un.nome)} · ${escapeHtml(PATIO_PERIODOS[r.periodo]||'')}</span>${r.qtd?`<strong>${r.qtd} cab.</strong>`:''}</div>`;
     }
     const statusTxt = ehFech ? (aberto?'Fechado':'Liberado') : (aberto?'Planejada':'Realizada');
     const btnTxt = ehFech ? (aberto?'Liberar':'Reabrir') : (aberto?'Marcar realizada':'Reabrir');
@@ -1748,6 +1781,9 @@ if(isConfigured){
     const mov = patioSort(vis.filter(r=>r.tipo==='movimentacao'));
     document.getElementById('patioKpiFechados').textContent = fech.filter(r=>r.status==='fechado').reduce((n,r)=>n+(r.currais||[]).length,0);
     document.getElementById('patioKpiMov').textContent = mov.filter(r=>r.status==='planejada').length;
+    const somaQ = (arr,st)=>arr.filter(r=>r.status===st).reduce((n,r)=>n+(Number(r.qtd)||0),0);
+    const aF = somaQ(fech,'fechado'), aM = somaQ(mov,'planejada');
+    document.getElementById('patioTotais').textContent = (aF||aM) ? `Animais nos currais fechados: ${aF} · Animais a movimentar: ${aM}` : '';
     document.getElementById('patioFechados').innerHTML = fech.length ? fech.map(patioCardHtml).join('') : `<div class="empty-state"><p>Nenhum curral fechado.</p></div>`;
     document.getElementById('patioMov').innerHTML = mov.length ? mov.map(patioCardHtml).join('') : `<div class="empty-state"><p>Nenhuma movimentação planejada.</p></div>`;
   }
@@ -1797,6 +1833,7 @@ if(isConfigured){
         document.getElementById('fPatioUnidade').value = r.unidade||'confinamento';
         document.getElementById('fPatioData').value = r.data||patioDate;
         document.getElementById('fPatioObs').value = r.obs||'';
+        document.getElementById('fPatioQtd').value = r.qtd ? r.qtd : '';
         if(r.tipo==='fechamento'){
           document.getElementById('fPatioCurrais').value = (r.currais||[]).join(', ');
           document.getElementById('fPatioFinalidade').value = r.finalidade||'outro';
@@ -1834,7 +1871,8 @@ if(isConfigured){
       tipo: patioTipoForm,
       unidade: document.getElementById('fPatioUnidade').value,
       data: dataSel,
-      obs: document.getElementById('fPatioObs').value.trim()
+      obs: document.getElementById('fPatioObs').value.trim(),
+      qtd: Math.max(0, parseInt(document.getElementById('fPatioQtd').value,10) || 0)
     };
     if(patioTipoForm==='fechamento'){
       rec.currais = patioParseCurrais(document.getElementById('fPatioCurrais').value);
@@ -1887,14 +1925,14 @@ if(isConfigured){
         txt += `Currais fechados:\n`;
         fech.forEach(r=>{
           const ok = r.status!=='fechado';
-          txt += `• ${(r.currais||[]).join(', ')} — ${PATIO_FINALIDADES[r.finalidade]||''}${r.escala?' ('+r.escala+')':''}${ok?' ✅ liberado':''}${r.obs?' — '+r.obs:''}\n`;
+          txt += `• ${(r.currais||[]).join(', ')}${r.qtd?' ('+r.qtd+' cab.)':''} — ${PATIO_FINALIDADES[r.finalidade]||''}${r.escala?' ('+r.escala+')':''}${ok?' ✅ liberado':''}${r.obs?' — '+r.obs:''}\n`;
         });
       }
       if(mov.length){
         txt += `Movimentações:\n`;
         mov.forEach(r=>{
           const ok = r.status!=='planejada';
-          txt += `• ${(r.origem||[]).join(', ')} → ${(r.destino||[]).join(', ')} — ${PATIO_PERIODOS[r.periodo]||''}${ok?' ✅ realizada':''}${r.obs?' — '+r.obs:''}\n`;
+          txt += `• ${(r.origem||[]).join(', ')} → ${(r.destino||[]).join(', ')}${r.qtd?' ('+r.qtd+' cab.)':''} — ${PATIO_PERIODOS[r.periodo]||''}${ok?' ✅ realizada':''}${r.obs?' — '+r.obs:''}\n`;
         });
       }
     });
@@ -2042,57 +2080,4 @@ if(isConfigured){
 
   // ----- Manejo: spec -----
   function patioSpec(){
-    const vis = patioSort(patioVisible());
-    const blocos = [];
-    Object.keys(PATIO_UNIDADES).forEach(k=>{
-      const nome = PATIO_UNIDADES[k].nome;
-      const fech = vis.filter(r=>r.unidade===k && r.tipo==='fechamento');
-      const mov = vis.filter(r=>r.unidade===k && r.tipo==='movimentacao');
-      const desde = r => (r.data && r.data < patioDate) ? ' (desde '+patioDdmm(r.data)+')' : '';
-      if(fech.length) blocos.push({
-        titulo: nome+' — Currais fechados',
-        colunas:[{h:'Currais / piquetes',w:3},{h:'Finalidade',w:2},{h:'Situação',w:1.5},{h:'Obs',w:2}],
-        linhas: fech.map(r=>[
-          (r.currais||[]).join(', ')+desde(r),
-          (PATIO_FINALIDADES[r.finalidade]||'')+(r.escala?' · '+r.escala:''),
-          r.status==='fechado' ? 'Fechado' : 'Liberado',
-          r.obs || '—'
-        ])
-      });
-      if(mov.length) blocos.push({
-        titulo: nome+' — Movimentações',
-        colunas:[{h:'De',w:2.2},{h:'Para',w:2.2},{h:'Quando',w:1.6},{h:'Situação',w:1.5},{h:'Obs',w:1.6}],
-        linhas: mov.map(r=>[
-          (r.origem||[]).join(', ')+desde(r),
-          (r.destino||[]).join(', '),
-          PATIO_PERIODOS[r.periodo]||'',
-          r.status==='planejada' ? 'Planejada' : 'Realizada',
-          r.obs || '—'
-        ])
-      });
-    });
-    const un = patioUnidadeFiltro==='todas' ? 'Todas as unidades' : PATIO_UNIDADES[patioUnidadeFiltro].nome;
-    return {
-      titulo: 'Manejo de Currais',
-      sub: fmtDateLabel(patioDate)+' · '+un,
-      kpis:[
-        { num: document.getElementById('patioKpiFechados').textContent, label:'Currais fechados' },
-        { num: document.getElementById('patioKpiMov').textContent, label:'Movimentações planejadas' }
-      ],
-      blocos
-    };
-  }
-  function patioFileTag(){ return patioDate + (patioUnidadeFiltro==='todas' ? '' : '-'+patioUnidadeFiltro); }
-  function patioTemDados(){
-    if(patioSpec().blocos.length===0){ showToast('Nada registrado neste dia'); return false; }
-    return true;
-  }
-  document.getElementById('btnPatioPdf').addEventListener('click', ()=>{
-    if(!patioTemDados()) return;
-    try{ specToPdf(patioSpec()).save('manejo-'+patioFileTag()+'.pdf'); }
-    catch(e){ console.error(e); showToast('Não foi possível gerar o PDF'); }
-  });
-  document.getElementById('btnPatioJpeg').addEventListener('click', async ()=>{
-    if(!patioTemDados()) return;
-    try{ downloadBlob(await specToJpegBlob(patioSpec()), 'manejo-'+patioFileTag()+'.jpg'); }
-    catch(e){ console.error(e); showToast('Não foi possível gerar a imagem')
+    const
