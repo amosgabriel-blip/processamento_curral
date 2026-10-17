@@ -1,5 +1,6 @@
-const CACHE_NAME = 'processamento-gol-v29';
-const SHELL_FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE_NAME = 'processamento-gol-v30';
+const SHELL_FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png',
+  './firebase-bundle.js', './jspdf.umd.min.js', './jspdf.plugin.autotable.min.js', './xlsx.full.min.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
