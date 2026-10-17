@@ -13,7 +13,7 @@
 <title>Processamento · O.L</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
   :root{
     --verde-escuro:#1A3530;
@@ -377,6 +377,7 @@
   function show(t){ msg.textContent=t; box.style.display='block'; }
   window.addEventListener('error', function(e){
     if(window.__appBooted) return;
+    if(e.target && e.target.tagName && e.target.tagName!=='SCRIPT') return;
     var alvo = e.target && (e.target.src||e.target.href);
     show('O app não iniciou: ' + (alvo ? 'falha ao carregar ' + alvo : (e.message||'erro desconhecido')));
   }, true);
@@ -752,7 +753,7 @@
       <span>Manejo</span>
     </button>
     </div>
-    <div class="app-footer">Powered by AG · v29</div>
+    <div class="app-footer">Powered by AG · v30</div>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -813,16 +814,12 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="./jspdf.umd.min.js"></script>
+<script src="./jspdf.plugin.autotable.min.js"></script>
+<script src="./xlsx.full.min.js"></script>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, onSnapshot, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { initializeApp, getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, onSnapshot, query, orderBy, writeBatch, getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "./firebase-bundle.js";
 
-// ====== CONFIGURAÇÃO DO FIREBASE ======
-// Substitua pelos dados do SEU projeto (Configurações do projeto > Seus apps > SDK setup and configuration)
 const firebaseConfig = {
   apiKey: "AIzaSyB82r1s_Zy-Jvoaj2RdDNiBgNQDCyd5vPI",
   authDomain: "campool-7e159.firebaseapp.com",
@@ -2080,4 +2077,10 @@ if(isConfigured){
 
   // ----- Manejo: spec -----
   function patioSpec(){
-    const
+    const vis = patioSort(patioVisible());
+    const blocos = [];
+    Object.keys(PATIO_UNIDADES).forEach(k=>{
+      const nome = PATIO_UNIDADES[k].nome;
+      const fech = vis.filter(r=>r.unidade===k && r.tipo==='fechamento');
+      const mov = vis.filter(r=>r.unidade===k && r.tipo==='movimentacao');
+      const desde = r => (r.data && r.data < patioDate) ? ' (desde '+patioDdmm(r.data)+')' : '';
