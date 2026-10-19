@@ -306,6 +306,14 @@
   }
 
 
+  /* ---------- ROLAGEM / CARDS RECOLHÍVEIS ---------- */
+  .fab-wrap{position:fixed; right:max(14px, calc(50% - 226px)); bottom:98px; display:flex; flex-direction:column; gap:8px; z-index:15;}
+  .fab{width:42px; height:42px; border-radius:50%; border:none; background:var(--verde-escuro); color:#fff; font-size:17px; line-height:1; box-shadow:0 4px 12px rgba(0,0,0,0.25); opacity:.92; cursor:pointer;}
+  .fab:active{transform:scale(.94);}
+  .card-head{cursor:pointer;}
+  .chev{display:inline-block; margin-left:6px; color:var(--verde-lage); font-size:13px;}
+  .sec-toggle{cursor:pointer; user-select:none;}
+
   /* ---------- PATIO ---------- */
   .chip-btn{border:1.5px solid var(--linha); background:var(--papel); color:var(--texto-muted); border-radius:20px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer;}
   .chip-btn.done{background:var(--verde-lage); border-color:var(--verde-lage); color:#fff;}
@@ -321,7 +329,7 @@
 
   /* ---------- NAV ---------- */
   nav{
-    position:absolute; bottom:0; left:0; right:0;
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; z-index:30;
     background:var(--papel); border-top:1px solid var(--linha);
     padding:8px 10px calc(4px + env(safe-area-inset-bottom));
   }
@@ -340,8 +348,9 @@
     padding-top:6px;
   }
 
+  @media print{ .fab-wrap{display:none !important;} }
   .toast{
-    position:absolute; bottom:78px; left:50%; transform:translateX(-50%) translateY(10px);
+    position:fixed; bottom:78px; left:50%; transform:translateX(-50%) translateY(10px);
     background:var(--verde-escuro); color:#fff; padding:10px 18px; border-radius:30px;
     font-size:12.5px; font-weight:600; opacity:0; pointer-events:none;
     transition:.2s; z-index:20; white-space:nowrap;
@@ -487,16 +496,15 @@
 
         <!-- Campos exclusivos: Saída (Boi Gordo) -->
         <div id="camposSaida" style="display:none;">
-          <div class="row-2">
-            <div class="field">
-              <label>Carimbo</label>
-              <input type="text" id="fCarimbo" placeholder="Nº do carimbo">
-            </div>
-            <div class="field">
-              <label>Escala</label>
-              <input type="text" id="fEscala" list="escalaSugestoesList" placeholder="Ex: JBS SENADOR CANEDO 266" autocomplete="off">
-              <datalist id="escalaSugestoesList"></datalist>
-            </div>
+          <div class="field">
+            <label>Carimbo</label>
+            <input type="text" id="fCarimbo" placeholder="Nº do carimbo">
+          </div>
+          <div class="field">
+            <label>Escala</label>
+            <select id="fEscala"><option value="">Selecione a escala</option></select>
+            <input type="text" id="fEscalaOutra" placeholder="Digite a escala" autocomplete="off" style="display:none; margin-top:8px;">
+            <datalist id="escalaSugestoesList"></datalist>
           </div>
           <div class="field">
             <label>Embarque</label>
@@ -738,9 +746,9 @@
         <button class="btn-secondary" id="btnPatioCancelar" type="button" style="margin-top:8px;">Cancelar</button>
       </form>
 
-      <div class="section-title">Currais fechados</div>
+      <div class="section-title sec-toggle" data-patio-sec="fech">Currais fechados <span class="count-chip" id="patioCountFech">0</span><span class="chev" id="patioChevFech">&#9650;</span></div>
       <div id="patioFechados"></div>
-      <div class="section-title" style="margin-top:18px;">Movimentações</div>
+      <div class="section-title sec-toggle" style="margin-top:18px;" data-patio-sec="mov">Movimentações <span class="count-chip" id="patioCountMov">0</span><span class="chev" id="patioChevMov">&#9650;</span></div>
       <div id="patioMov"></div>
       <button class="btn-primary" id="btnPatioPdf" type="button" style="margin-top:16px;">Baixar PDF</button>
       <button class="btn-primary" id="btnPatioJpeg" type="button" style="margin-top:10px;">Baixar imagem (JPEG)</button>
@@ -777,17 +785,21 @@
       <span>Manejo</span>
     </button>
     </div>
-    <div class="app-footer">Powered by AG · v32</div>
+    <div class="app-footer">Powered by AG · v35</div>
   </nav>
 
+  <div class="fab-wrap">
+    <button type="button" class="fab" id="fabTopo" aria-label="Ir para o topo" style="display:none;">&#9650;</button>
+    <button type="button" class="fab" id="fabFim" aria-label="Ir para o fim" style="display:none;">&#9660;</button>
+  </div>
   <div class="toast" id="toast"></div>
 
-  <div id="updateBanner" style="display:none; position:absolute; top:0; left:0; right:0; z-index:70; background:var(--laranja); color:#fff; padding:10px 16px; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+  <div id="updateBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:70; background:var(--laranja); color:#fff; padding:10px 16px; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
     <span>Nova versão do app disponível</span>
     <button id="btnAtualizarApp" style="background:#fff; color:var(--laranja); border:none; font-weight:700; font-size:12px; padding:6px 12px; border-radius:20px; cursor:pointer;">Atualizar agora</button>
   </div>
 
-  <div id="loginOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:60; padding:40px 24px; overflow-y:auto;">
+  <div id="loginOverlay" style="display:none; position:fixed; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:60; padding:40px 24px; overflow-y:auto;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:28px;">
       <div class="brand-mark" style="width:34px; height:34px; border-radius:9px; background:var(--laranja); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:var(--verde-escuro); transform:rotate(-6deg);">O.L</div>
       <div class="brand-text" style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Processamento</div>
@@ -808,7 +820,7 @@
     </form>
   </div>
 
-  <div id="adminOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:55; padding:28px 22px; overflow-y:auto;">
+  <div id="adminOverlay" style="display:none; position:fixed; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:55; padding:28px 22px; overflow-y:auto;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
       <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px;">Usuários administradores</div>
       <button id="btnFecharAdmin" style="background:none; border:none; color:rgba(247,245,239,0.7); font-size:20px; cursor:pointer; line-height:1;">&times;</button>
@@ -823,7 +835,7 @@
     <div id="adminList"></div>
   </div>
 
-  <div id="setupOverlay" style="display:none; position:absolute; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:50; padding:28px 22px; overflow-y:auto;">
+  <div id="setupOverlay" style="display:none; position:fixed; inset:0; background:var(--verde-escuro); color:var(--creme); z-index:50; padding:28px 22px; overflow-y:auto;">
     <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;">Conectar ao Firestore</div>
     <div style="font-size:13px; color:rgba(247,245,239,0.65); margin-bottom:20px; line-height:1.5;">
       O app ainda não está ligado ao seu banco de dados. Preencha o objeto <code style="background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:4px;">firebaseConfig</code> no início do arquivo com os dados do seu projeto Firebase.
@@ -1165,7 +1177,7 @@ if(isConfigured){
       document.getElementById('fCurralFinal').value = record.curralFinal || '';
     }else if(record.tipo === 'saida'){
       document.getElementById('fCarimbo').value = record.carimbo || '';
-      document.getElementById('fEscala').value = record.escala || '';
+      escalaSetForm(record.escala || '');
       document.getElementById('fEmbarque').value = record.embarque || '';
       document.getElementById('fRefugoDente').value = record.refugoDente || '';
       document.getElementById('fRefugoPeso').value = record.refugoPeso || '';
@@ -1181,6 +1193,7 @@ if(isConfigured){
   function cancelEdit(){
     editingId = null;
     document.getElementById('formNovo').reset();
+    escalaSetForm('');
     document.getElementById('fData').value = todayISO();
     selectedType = TYPES[0].id;
     renderTypeGrid();
@@ -1688,29 +1701,35 @@ if(isConfigured){
         const infoProgramada = p
           ? `<div class="curral-sub">Embarque programado: ${escapeHtml(fmtDateLabel(p.dataEmbarque))} &middot; ${escapeHtml(p.destino)} &middot; ${p.qtde} cab. planejados${p.mercado ? ' &middot; '+escapeHtml(p.mercado) : ''}</div>`
           : '';
+        const kG = 'g|'+g.chave+'|'+g.embarque, openG = cardOpen(kG, false);
         return `<div class="curral-card" style="flex-direction:column; align-items:stretch; gap:10px;">
-          <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div class="card-head" data-card-toggle="${escapeHtml(kG)}" data-card-def="0" style="display:flex; align-items:center; justify-content:space-between;">
             <div>
-              <div class="curral-name">Escala ${escapeHtml(g.chave)}</div>
+              <div class="curral-name">Escala ${escapeHtml(g.chave)}<span class="chev">${openG?'&#9650;':'&#9660;'}</span></div>
               <div class="curral-sub">Lido em: ${fmtDateRange(g.dataMin, g.dataMax)} &middot; Embarque ${escapeHtml(g.embarque)}</div>
               ${infoProgramada}
             </div>
             <div class="curral-num">${g.qtd}<div class="curral-sub" style="text-align:right;">animais lidos</div></div>
           </div>
-          <div class="table-wrap" style="padding:6px 12px;">${curraisRows}</div>
-          <div class="curral-sub">${g.currais.length} curral${g.currais.length>1?'is':''} lido${g.currais.length>1?'s':''} &middot; Carimbo ${escapeHtml(g.carimbo)}</div>
+          <div ${openG?'':'style="display:none"'}>
+            <div class="table-wrap" style="padding:6px 12px;">${curraisRows}</div>
+            <div class="curral-sub" style="margin-top:8px;">${g.currais.length} curral${g.currais.length>1?'is':''} lido${g.currais.length>1?'s':''} &middot; Carimbo ${escapeHtml(g.carimbo)}</div>
+          </div>
         </div>`;
       }
+      const kM = 'm|'+g.chave+'|'+g.dataMax, openM = cardOpen(kM, false);
       return `<div class="curral-card" style="flex-direction:column; align-items:stretch; gap:10px;">
-        <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div class="card-head" data-card-toggle="${escapeHtml(kM)}" data-card-def="0" style="display:flex; align-items:center; justify-content:space-between;">
           <div>
-            <div class="curral-name">Lote ${escapeHtml(g.chave)}</div>
+            <div class="curral-name">Lote ${escapeHtml(g.chave)}<span class="chev">${openM?'&#9650;':'&#9660;'}</span></div>
             <div class="curral-sub">${fmtDateLabel(g.dataMax)} &middot; Raça: ${escapeHtml(g.raca)}</div>
           </div>
           <div class="curral-num">${g.qtd}<div class="curral-sub" style="text-align:right;">animais lidos</div></div>
         </div>
-        <div class="table-wrap" style="padding:6px 12px;">${curraisRows}</div>
-        <div class="curral-sub">${g.currais.length} curral${g.currais.length>1?'is':''} recebido${g.currais.length>1?'s':''}</div>
+        <div ${openM?'':'style="display:none"'}>
+          <div class="table-wrap" style="padding:6px 12px;">${curraisRows}</div>
+          <div class="curral-sub" style="margin-top:8px;">${g.currais.length} curral${g.currais.length>1?'is':''} recebido${g.currais.length>1?'s':''}</div>
+        </div>
       </div>`;
     }).join('');
   }
@@ -1748,6 +1767,8 @@ if(isConfigured){
   let patioUnidadeFiltro = 'todas';
   let patioTipoForm = 'fechamento';
   let editingPatioId = null;
+  const patioSecFechada = { fech:false, mov:false };
+  const cardsEstado = new Map();
 
   function patioParseCurrais(txt){
     const parts = String(txt||'').split(/\s*[,;]\s*|\s+e\s+/).map(x=>x.trim()).filter(Boolean);
@@ -1816,6 +1837,13 @@ if(isConfigured){
     const somaQ = (arr,st)=>arr.filter(r=>r.status===st).reduce((n,r)=>n+(Number(r.qtd)||0),0);
     const aF = somaQ(fech,'fechado'), aM = somaQ(mov,'planejada');
     document.getElementById('patioTotais').textContent = (aF||aM) ? `Animais nos currais fechados: ${aF} · Animais a movimentar: ${aM}` : '';
+    document.getElementById('patioCountFech').textContent = fech.length;
+    document.getElementById('patioCountMov').textContent = mov.length;
+    ['fech','mov'].forEach(k=>{
+      const aberto = !patioSecFechada[k];
+      document.getElementById(k==='fech'?'patioFechados':'patioMov').style.display = aberto ? '' : 'none';
+      document.getElementById(k==='fech'?'patioChevFech':'patioChevMov').innerHTML = aberto ? '&#9650;' : '&#9660;';
+    });
     document.getElementById('patioFechados').innerHTML = fech.length ? fech.map(patioCardHtml).join('') : `<div class="empty-state"><p>Nenhum curral fechado.</p></div>`;
     document.getElementById('patioMov').innerHTML = mov.length ? mov.map(patioCardHtml).join('') : `<div class="empty-state"><p>Nenhuma movimentação planejada.</p></div>`;
   }
@@ -2286,17 +2314,20 @@ if(isConfigured){
     const btn = l.aberto
       ? `<button type="button" class="chip-btn" data-form-fechar="${escapeHtml(l.chave)}">Fechar curral</button>`
       : (l.fech ? `<button type="button" class="chip-btn" data-form-reabrir="${l.fech.id}">Reabrir</button>` : '');
+    const kF = 'f|'+l.chave+'|'+(l.fech?l.fech.id:'aberto'), openF = cardOpen(kF, l.aberto);
     return `<div class="curral-card" style="flex-direction:column; align-items:stretch; gap:10px;${l.aberto?'':' opacity:.8;'}">
-      <div style="display:flex; align-items:center; justify-content:space-between;">
+      <div class="card-head" data-card-toggle="${escapeHtml(kF)}" data-card-def="${l.aberto?1:0}" style="display:flex; align-items:center; justify-content:space-between;">
         <div>
-          <div class="curral-name">Curral ${escapeHtml(l.curral)}</div>
+          <div class="curral-name">Curral ${escapeHtml(l.curral)}<span class="chev">${openF?'&#9650;':'&#9660;'}</span></div>
           <div class="curral-sub">${status} &middot; ${l.entradas} entrada${l.entradas>1?'s':''} &middot; ${fmtDateRange(l.dataMin, l.dataMax)}</div>
         </div>
         <div class="curral-num">${l.qtd}<div class="curral-sub" style="text-align:right;">animais</div></div>
       </div>
-      <div class="table-wrap" style="padding:6px 12px;">${origRows}</div>
-      ${l.fornecedores.length ? `<div class="curral-sub">Fornecedor: ${escapeHtml(l.fornecedores.join(', '))}</div>` : ''}
-      <div class="curral-sub">Curral final no confinamento: <strong>${l.final ? escapeHtml(l.final) : 'a definir'}</strong></div>
+      <div ${openF?'':'style="display:none"'}>
+        <div class="table-wrap" style="padding:6px 12px;">${origRows}</div>
+        ${l.fornecedores.length ? `<div class="curral-sub" style="margin-top:8px;">Fornecedor: ${escapeHtml(l.fornecedores.join(', '))}</div>` : ''}
+        <div class="curral-sub" style="margin-top:6px;">Curral final no confinamento: <strong>${l.final ? escapeHtml(l.final) : 'a definir'}</strong></div>
+      </div>
       <div class="patio-actions">${btn}</div>
     </div>`;
   }
@@ -2342,8 +2373,49 @@ if(isConfigured){
 
   // ---------- ESCALA DE ABATE PROGRAMADA (sugestões no lançamento) ----------
   function escalaLabelValor(e){
-    return `${e.destino || ''} ${e.qtde || ''}`.trim();
+    return (e.escala && String(e.escala).trim()) || `${e.destino || ''} ${e.qtde || ''}`.trim();
   }
+  const ESCALA_OUTRA = '__outra__';
+  function escalaOpcoes(manter){
+    // mostra as escalas dos próximos embarques (e dos últimos 10 dias); mantém a já escolhida
+    const lim = shiftDate(todayISO(), -10);
+    const vistos = new Set(); const out = [];
+    escalasProgramadas.slice().sort((a,b)=>String(a.dataEmbarque).localeCompare(String(b.dataEmbarque))).forEach(e=>{
+      const v = escalaLabelValor(e); if(!v || vistos.has(v)) return;
+      if(e.dataEmbarque && e.dataEmbarque < lim && v !== manter) return;
+      vistos.add(v);
+      const dataBr = e.dataEmbarque ? e.dataEmbarque.slice(5).split('-').reverse().join('/') : '';
+      out.push({ valor:v, texto:[v, dataBr, e.destino && e.escala ? e.destino : '', e.qtde ? e.qtde+' cab.' : ''].filter(Boolean).join(' · ') });
+    });
+    return out;
+  }
+  function escalaRenderSelect(manter){
+    const sel = document.getElementById('fEscala'); if(!sel) return;
+    const atual = manter !== undefined ? manter : (sel.value===ESCALA_OUTRA ? '' : sel.value);
+    const ops = escalaOpcoes(atual);
+    sel.innerHTML = '<option value="">Selecione a escala</option>'
+      + ops.map(o=>`<option value="${escapeHtml(o.valor)}">${escapeHtml(o.texto)}</option>`).join('')
+      + `<option value="${ESCALA_OUTRA}">Outra escala (digitar)</option>`;
+    if(atual && ops.some(o=>o.valor===atual)) sel.value = atual;
+    escalaOutraVis();
+  }
+  function escalaOutraVis(){
+    document.getElementById('fEscalaOutra').style.display = document.getElementById('fEscala').value===ESCALA_OUTRA ? 'block' : 'none';
+  }
+  function escalaGetForm(){
+    const v = document.getElementById('fEscala').value;
+    return v===ESCALA_OUTRA ? document.getElementById('fEscalaOutra').value.trim() : v.trim();
+  }
+  function escalaSetForm(valor){
+    const sel = document.getElementById('fEscala');
+    document.getElementById('fEscalaOutra').value = '';
+    if(!valor){ escalaRenderSelect(''); sel.value=''; escalaOutraVis(); return; }
+    escalaRenderSelect(valor);
+    if([...sel.options].some(o=>o.value===valor)) sel.value = valor;
+    else { sel.value = ESCALA_OUTRA; document.getElementById('fEscalaOutra').value = valor; }
+    escalaOutraVis();
+  }
+  document.getElementById('fEscala').addEventListener('change', escalaOutraVis);
   function renderEscalaSugestoes(){
     document.getElementById('escProgCount').textContent = escalasProgramadas.length;
     const dl = document.getElementById('escalaSugestoesList');
@@ -2353,6 +2425,7 @@ if(isConfigured){
       const label = `${dataBr} · ${e.mercado||''} · ${e.qtde||''} cab.`;
       return `<option value="${escapeHtml(valor)}" label="${escapeHtml(label)}"></option>`;
     }).join('');
+    escalaRenderSelect();
   }
   // Selecionar uma escala programada NÃO altera a Data do lançamento — esse campo é a data
   // em que os animais daquele curral foram lidos/contados, que pode ser diferente da data do embarque.
@@ -2371,6 +2444,8 @@ if(isConfigured){
       const wb = XLSX.read(buf, { type:'array', cellDates:true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval:'', range:1 }); // linha 2 tem os cabeçalhos nesta planilha
+      const norm = (x)=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+      const colEscala = rows.length ? Object.keys(rows[0]).find(k=>norm(k)==='escala') : null;
       const registros = rows.map(row=>{
         const dataEmbarque = parseDataFlexivel(row['Data']);
         const dataAbate = parseDataFlexivel(row['Data Abate']);
@@ -2384,6 +2459,7 @@ if(isConfigured){
           qtde,
           mercado: String(row['Mercado']||'').trim(),
           destino: String(row['Destino']||'').trim(),
+          escala: colEscala ? String(row[colEscala]||'').trim() : '',
         };
       }).filter(Boolean);
       if(registros.length===0){
@@ -2424,6 +2500,33 @@ if(isConfigured){
     }
   });
 
+  // ---------- CARDS RECOLHÍVEIS / BOTÕES DE ROLAGEM ----------
+  function cardOpen(key, def){ return cardsEstado.has(key) ? cardsEstado.get(key) : def; }
+  document.getElementById('view-currais').addEventListener('click', (e)=>{
+    const h = e.target.closest('[data-card-toggle]');
+    if(!h || e.target.closest('button')) return;
+    const k = h.dataset.cardToggle, def = h.dataset.cardDef === '1';
+    cardsEstado.set(k, !cardOpen(k, def));
+    renderCurrais();
+  });
+  document.getElementById('view-patio').addEventListener('click', (e)=>{
+    const h = e.target.closest('[data-patio-sec]');
+    if(!h) return;
+    patioSecFechada[h.dataset.patioSec] = !patioSecFechada[h.dataset.patioSec];
+    renderPatio();
+  });
+  function updateFab(){
+    const de = document.documentElement;
+    const topo = window.scrollY || de.scrollTop || 0;
+    const sobra = de.scrollHeight - topo - window.innerHeight;
+    document.getElementById('fabTopo').style.display = topo > 400 ? 'block' : 'none';
+    document.getElementById('fabFim').style.display = sobra > 400 ? 'block' : 'none';
+  }
+  window.addEventListener('scroll', updateFab, { passive:true });
+  document.getElementById('fabTopo').addEventListener('click', ()=>window.scrollTo({ top:0, behavior:'smooth' }));
+  document.getElementById('fabFim').addEventListener('click', ()=>window.scrollTo({ top:document.documentElement.scrollHeight, behavior:'smooth' }));
+  setInterval(updateFab, 800);
+
   function renderAll(){
     renderHeader();
     renderHoje();
@@ -2437,6 +2540,7 @@ if(isConfigured){
   function switchView(view){
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     document.getElementById('view-'+view).classList.add('active');
+    window.scrollTo(0, 0);
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   }
   document.querySelectorAll('.nav-btn').forEach(btn=>{
@@ -2671,7 +2775,7 @@ if(isConfigured){
       record.curralFinal = document.getElementById('fCurralFinal').value.trim();
     }else if(selectedType === 'saida'){
       record.carimbo = document.getElementById('fCarimbo').value.trim();
-      record.escala = document.getElementById('fEscala').value.trim();
+      record.escala = escalaGetForm();
       record.embarque = document.getElementById('fEmbarque').value.trim();
       record.refugoDente = Number(document.getElementById('fRefugoDente').value) || 0;
       record.refugoPeso = Number(document.getElementById('fRefugoPeso').value) || 0;
@@ -2690,6 +2794,7 @@ if(isConfigured){
     const wasEditing = !!editingId;
     editingId = null;
     document.getElementById('formNovo').reset();
+    escalaSetForm('');
     document.getElementById('fData').value = todayISO();
     selectedType = TYPES[0].id;
     renderTypeGrid();
