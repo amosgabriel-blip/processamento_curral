@@ -785,7 +785,7 @@
       <span>Manejo</span>
     </button>
     </div>
-    <div class="app-footer">Powered by AG · v35</div>
+    <div class="app-footer">Powered by AG · v36</div>
   </nav>
 
   <div class="fab-wrap">
@@ -2385,7 +2385,7 @@ if(isConfigured){
       if(e.dataEmbarque && e.dataEmbarque < lim && v !== manter) return;
       vistos.add(v);
       const dataBr = e.dataEmbarque ? e.dataEmbarque.slice(5).split('-').reverse().join('/') : '';
-      out.push({ valor:v, texto:[v, dataBr, e.destino && e.escala ? e.destino : '', e.qtde ? e.qtde+' cab.' : ''].filter(Boolean).join(' · ') });
+      out.push({ valor:v, texto:v });
     });
     return out;
   }
@@ -2420,10 +2420,7 @@ if(isConfigured){
     document.getElementById('escProgCount').textContent = escalasProgramadas.length;
     const dl = document.getElementById('escalaSugestoesList');
     dl.innerHTML = escalasProgramadas.map(e=>{
-      const dataBr = e.dataEmbarque ? e.dataEmbarque.slice(5).split('-').reverse().join('/') : '';
-      const valor = escalaLabelValor(e);
-      const label = `${dataBr} · ${e.mercado||''} · ${e.qtde||''} cab.`;
-      return `<option value="${escapeHtml(valor)}" label="${escapeHtml(label)}"></option>`;
+      return `<option value="${escapeHtml(escalaLabelValor(e))}"></option>`;
     }).join('');
     escalaRenderSelect();
   }
